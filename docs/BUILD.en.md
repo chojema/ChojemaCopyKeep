@@ -25,7 +25,7 @@ The executable is generated at `build/windows/ChojemaCopyKeep.exe`. Launching it
 
 CTest covers text and image storage, duplicates, promotion settings, deletion, retention limits, settings and restart persistence, previews, and both language resources. It uses temporary data under the supplied build folder and does not collect the actual clipboard.
 
-Popup checks in both languages cover automatic preview expansion and collapse, keyboard and mouse selection, preservation of the paste command, and placement at screen edges. They use synthetic data and do not send actual paste input.
+Popup checks in both languages cover automatic preview expansion and collapse, mouse hover previews, keyboard and mouse selection, preservation of the paste command, and placement at screen edges. They use synthetic data and do not send actual paste input.
 
 ```powershell
 ctest --test-dir build/windows --output-on-failure
@@ -39,7 +39,7 @@ build/windows/ChojemaCopyKeep.exe --smoke-test ko .local/preview-ko.png
 build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 ```
 
-Append `short`, `long`, `multiline`, `image`, `empty`, `many`, `settings`, or `contrast` to render that state. The default is `image`. The `contrast` case uses system high-contrast colors in the synthetic window without changing operating system settings. Settings checks are included in the standard test run.
+Append `short`, `long`, `multiline`, `hover`, `image`, `empty`, `many`, `settings`, or `contrast` to render that state. The default is `image`. The `contrast` case uses system high-contrast colors in the synthetic window without changing operating system settings. Settings checks are included in the standard test run.
 
 Use `--data-dir` during normal execution to select a separate development storage folder. It can contain real copied content and must remain private.
 

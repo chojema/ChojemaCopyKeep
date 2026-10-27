@@ -25,7 +25,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Test
 
 CTest는 텍스트와 이미지 저장, 중복 처리, 순서 이동 옵션, 삭제, 보관 한도, 설정과 재실행 후 복원, 이미지 미리보기 및 두 언어 리소스를 검사합니다. 테스트는 전달된 빌드 폴더의 임시 데이터만 사용하고 실제 클립보드 내용을 수집하지 않습니다.
 
-두 언어의 팝업 검사에서는 항목 선택에 따른 미리보기 자동 표시와 숨김, 키보드와 마우스 선택, 붙여넣기 명령 유지 및 화면 가장자리 배치를 확인합니다. 합성 데이터만 사용하고 실제 붙여넣기 입력은 전송하지 않습니다.
+두 언어의 팝업 검사에서는 항목 선택에 따른 미리보기 자동 표시와 숨김, 마우스 호버 미리보기, 키보드와 마우스 선택, 붙여넣기 명령 유지 및 화면 가장자리 배치를 확인합니다. 합성 데이터만 사용하고 실제 붙여넣기 입력은 전송하지 않습니다.
 
 ```powershell
 ctest --test-dir build/windows --output-on-failure
@@ -39,7 +39,7 @@ build/windows/ChojemaCopyKeep.exe --smoke-test ko .local/preview-ko.png
 build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 ```
 
-마지막 인수로 `short`, `long`, `multiline`, `image`, `empty`, `many`, `settings`, `contrast`를 지정하면 해당 상태를 렌더링합니다. 생략하면 이미지 상태를 사용합니다. `contrast`는 합성 화면에 시스템 고대비 색상을 적용하며 운영체제 설정은 바꾸지 않습니다. 설정창 검사도 기본 검사에 포함됩니다.
+마지막 인수로 `short`, `long`, `multiline`, `hover`, `image`, `empty`, `many`, `settings`, `contrast`를 지정하면 해당 상태를 렌더링합니다. 생략하면 이미지 상태를 사용합니다. `contrast`는 합성 화면에 시스템 고대비 색상을 적용하며 운영체제 설정은 바꾸지 않습니다. 설정창 검사도 기본 검사에 포함됩니다.
 
 개발용 저장 위치는 `--data-dir`로 지정할 수 있습니다. 일반 실행에서는 이 폴더에 실제 복사 내용이 저장되므로 공개 대상에서 제외해야 합니다.
 

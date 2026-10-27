@@ -20,7 +20,7 @@ using namespace copykeep;
 namespace {
 constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
-constexpr UINT capture_timer = 10, paste_timer = 11;
+constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, hover_delay = 250;
 const COLORREF accent = RGB(23,107,99);
 HINSTANCE instance;
 std::wstring text(UINT id, bool english) {
@@ -99,9 +99,9 @@ public:
     HBITMAP previewBitmap=nullptr;
     ui::Palette colors;
     HBRUSH surfaceBrush=nullptr, backgroundBrush=nullptr;
-    int hoveredRow=-1;
+    int hoveredRow=-1, previewRow=-1;
     bool previewExpanded=false, popupAnchorValid=false;
-    POINT popupAnchor{};
+    POINT popupAnchor{}, hoverPoint{};
     HICON icon=nullptr;
     std::vector<Item> items;
     DWORD lastSequence=0;
@@ -236,6 +236,7 @@ public:
     }
     int selected() const { int i=static_cast<int>(SendMessageW(list,LB_GETCURSEL,0,0)); return i>=0 && i<static_cast<int>(items.size())?i:-1; }
     void refresh(int selection=0) {
+        if (popup) KillTimer(popup,hover_timer); previewRow=-1;
         items=store.list(); SendMessageW(list,WM_SETREDRAW,FALSE,0); SendMessageW(list,LB_RESETCONTENT,0,0);
         for (const auto& item:items) {
             auto label=item.kind==0?t(IDS_TEXT)+L": "+item.preview:t(IDS_IMAGE)+L" "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height);
@@ -247,7 +248,7 @@ public:
     }
     void update_preview() {
         if (previewBitmap) { DeleteObject(previewBitmap); previewBitmap=nullptr; }
-        int index=selected();
+        int index=previewRow>=0 && previewRow<static_cast<int>(items.size())?previewRow:selected();
         Bytes data; std::wstring value;
         if (index>=0) {
             const auto& item=items[index]; data=store.payload(item.id);
@@ -265,6 +266,12 @@ public:
             ShowWindow(preview,SW_HIDE);
         }
         InvalidateRect(popup,nullptr,TRUE);
+    }
+    // Hovered rows preview without changing the selection; -1 returns to the selected item.
+    void preview_row(int row) {
+        if (row==selected()) row=-1;
+        if (row==previewRow) return;
+        previewRow=row; update_preview();
     }
     void show() {
         if (IsWindowVisible(popup)) { ShowWindow(popup,SW_HIDE); return; }
@@ -603,9 +610,10 @@ public:
             if (message==WM_ACTIVATE && LOWORD(w)==WA_INACTIVE && !self->settingsOpen && !self->testing) { ShowWindow(window,SW_HIDE); return 0; }
             if (message==WM_DPICHANGED) { auto r=reinterpret_cast<RECT*>(l); SetWindowPos(window,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE); self->fonts(); self->layout(); self->update_preview(); return 0; }
             if (message==paste_message) { self->begin_paste(); return 0; }
+            if (message==WM_TIMER && w==hover_timer) { KillTimer(window,hover_timer); if (self->hoveredRow>=0) self->preview_row(self->hoveredRow); return 0; }
             if (message==WM_COMMAND) {
                 switch (LOWORD(w)) {
-                    case list_id: if (HIWORD(w)==LBN_SELCHANGE) self->update_preview(); break;
+                    case list_id: if (HIWORD(w)==LBN_SELCHANGE) { KillTimer(window,hover_timer); self->previewRow=-1; self->update_preview(); } break;
                     case settings_id: self->settings(); break;
                     case delete_id: self->remove_selected(); break;
                     case clear_id: self->clear_all(); break;
@@ -634,10 +642,17 @@ public:
         if (message==WM_MOUSEMOVE) {
             DWORD hit=static_cast<DWORD>(SendMessageW(window,LB_ITEMFROMPOINT,0,l));
             int hovered=HIWORD(hit)?-1:static_cast<int>(LOWORD(hit));
-            if (hovered!=self->hoveredRow) { self->hoveredRow=hovered; InvalidateRect(window,nullptr,FALSE); }
+            // A popup resize can move rows under a still cursor; only real pointer movement schedules a preview.
+            POINT point{GET_X_LPARAM(l),GET_Y_LPARAM(l)}; ClientToScreen(window,&point);
+            bool moved=point.x!=self->hoverPoint.x || point.y!=self->hoverPoint.y; self->hoverPoint=point;
+            if (hovered!=self->hoveredRow) {
+                self->hoveredRow=hovered; InvalidateRect(window,nullptr,FALSE); KillTimer(self->popup,hover_timer);
+                if (moved && hovered>=0) SetTimer(self->popup,hover_timer,hover_delay,nullptr);
+                else if (moved) self->preview_row(-1);
+            }
             TRACKMOUSEEVENT tracking{sizeof(tracking),TME_LEAVE,window,0}; TrackMouseEvent(&tracking);
         }
-        if (message==WM_MOUSELEAVE) { self->hoveredRow=-1; InvalidateRect(window,nullptr,FALSE); }
+        if (message==WM_MOUSELEAVE) { self->hoveredRow=-1; KillTimer(self->popup,hover_timer); self->preview_row(-1); InvalidateRect(window,nullptr,FALSE); }
         if (message==WM_KEYDOWN) {
             if (w==VK_RETURN) { PostMessageW(self->popup,paste_message,0,0); return 0; }
             if (w==VK_ESCAPE) { ShowWindow(self->popup,SW_HIDE); return 0; }
@@ -750,6 +765,24 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     SendMessageW(app.list,WM_LBUTTONUP,0,click);
     check(app.selected()==1 && app.previewExpanded,"Mouse selection automatically shows preview");
     check(PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)!=FALSE,"Mouse paste action preserved");
+    auto rowPoint=[&](int index){ RECT r{}; SendMessageW(app.list,LB_GETITEMRECT,index,reinterpret_cast<LPARAM>(&r)); return MAKELPARAM(app.scale(24),(r.top+r.bottom)/2); };
+    auto hover=[&](int index){ SendMessageW(app.list,WM_MOUSEMOVE,0,rowPoint(index)); };
+    auto settle=[&]{ SendMessageW(app.popup,WM_TIMER,hover_timer,0); };
+    select(0); hover(1);
+    check(!app.previewExpanded && KillTimer(app.popup,hover_timer)!=FALSE,"Hover waits before preview");
+    settle(); check(app.selected()==0 && app.previewExpanded && IsWindowVisible(app.preview),"Hover shows long text without changing selection");
+    check(GetFocus()==app.list && PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)==FALSE,"Hover keeps focus and does not paste");
+    hover(3); settle(); check(app.selected()==0 && app.previewBitmap && !IsWindowVisible(app.preview),"Hover shows image thumbnail");
+    hover(0); settle(); check(!app.previewExpanded && !app.previewBitmap,"Hovering short selected text collapses");
+    hover(1); settle(); SendMessageW(app.list,WM_MOUSELEAVE,0,0);
+    check(app.selected()==0 && !app.previewExpanded && app.previewRow==-1,"Leaving list restores selected preview");
+    hover(3); settle(); SendMessageW(app.list,WM_KEYDOWN,VK_DOWN,0);
+    check(app.selected()==1 && app.previewRow==-1 && !app.previewBitmap && IsWindowVisible(app.preview),"Keyboard selection overrides hover preview");
+    SendMessageW(app.list,WM_MOUSELEAVE,0,0); select(0);
+    POINT still{GET_X_LPARAM(rowPoint(2)),GET_Y_LPARAM(rowPoint(2))}; ClientToScreen(app.list,&still); app.hoverPoint=still;
+    SendMessageW(app.list,WM_MOUSEMOVE,0,rowPoint(2));
+    check(app.hoveredRow==2 && KillTimer(app.popup,hover_timer)==FALSE && !app.previewExpanded,"Rows moving under a still cursor do not preview");
+    SendMessageW(app.list,WM_MOUSELEAVE,0,0);
     MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromWindow(app.popup,MONITOR_DEFAULTTONEAREST),&monitor);
     auto originalAnchor=app.popupAnchor;
     app.popupAnchor={monitor.rcWork.right-1,monitor.rcWork.bottom-1};
@@ -780,6 +813,7 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     else if (scenario==L"short") select(0);
     else if (scenario==L"long") select(1);
     else if (scenario==L"multiline") select(2);
+    else if (scenario==L"hover") { select(0); hover(1); settle(); check(app.selected()==0 && app.hoveredRow==1 && app.previewExpanded,"Hover scenario previews unselected row"); }
     else { require(scenario==L"image","Unknown preview scenario"); select(3); }
     UpdateWindow(app.popup);
     HWND capture=settingsWindow?settingsWindow:app.popup;

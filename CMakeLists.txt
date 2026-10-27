@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(ChojemaCopyKeep VERSION 0.1.2 LANGUAGES CXX RC)
+project(ChojemaCopyKeep VERSION 0.1.3 LANGUAGES CXX RC)
 if(NOT WIN32)
   message(FATAL_ERROR "This project currently builds the Windows version only.")
 endif()
