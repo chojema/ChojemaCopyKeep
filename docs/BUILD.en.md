@@ -1,6 +1,6 @@
 # Build and Run
 
-[한국어](BUILD.ko.md) / [Home](../README.en.md)
+[한국어](BUILD.ko.md) | [README](../README.en.md)
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ Run from the project folder. The script discovers Visual Studio and sets up the 
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Test
 ```
 
-The output is `build/windows/ChojemaCopyKeep.exe`. Look for the notification area icon after launch.
+The executable is generated at `build/windows/ChojemaCopyKeep.exe`. Launching it adds an icon to the notification area.
 
 ## Checks
 
@@ -41,16 +41,6 @@ Use `--data-dir` during normal execution to select a separate development storag
 
 ## Distribution
 
-Distribute the executable with both language guides. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and a signed installer are not provided at this stage.
+Distribute the executable with both language guides. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and a signed installer are not provided.
 
-Git operations must use the reviewed files in `public-files.txt`. Do not indiscriminately add the entire folder. Update `.gitignore` and the audit when changing the public-file list.
-
-## Connect and Publish to GitHub
-
-Prepare an empty public repository owned by the user. Run the following in a normal PowerShell session with working Git and GitHub CLI access.
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File tools/publish.ps1
-```
-
-The default destination is `chojema/ChojemaCopyKeep`. The script verifies the account and public visibility, audits public files, and commits only approved files. It uses Park Chulwoo as the author and committer and derives the no-reply email from the verified GitHub account. It does not replace an unrelated origin or force-push. It confirms that the remote commit matches the local revision before reporting success. Environments that restrict network access or Git writes stop before completion; preparation alone does not mean that publication succeeded.
+Public files are managed through `public-files.txt` and `.gitignore`. Run the public-file audit whenever the list changes.

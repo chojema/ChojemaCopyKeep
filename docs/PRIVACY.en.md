@@ -1,24 +1,22 @@
 # Privacy and Local Storage
 
-[한국어](PRIVACY.ko.md) / [Home](../README.en.md)
-
-Developer: Park Chulwoo
+[한국어](PRIVACY.ko.md) | [README](../README.en.md)
 
 ## Collection and Retention
 
-While running, the app stores supported text or images locally when the clipboard changes. It does not record source app names, window titles, or every key you type. It does not automatically import clipboard content that existed before launch.
+The app stores text and images copied while it is running in a local database. Source app names, window titles, and keystrokes are not logged. Clipboard content from before launch is not imported automatically.
 
-History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`, or the separate folder selected for development. The app does not encrypt its database. Manage access through your device account and folder permissions.
+History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`, or the separate folder selected for development. The app does not encrypt its database. Access to stored files is managed through Windows accounts and folder permissions.
 
 ## Transmission
 
-The app has no clipboard upload feature, account service, cloud synchronization, telemetry, or automatic updates. GitHub is used for source and distribution files, not actual clipboard history.
+The app has no clipboard upload feature, account login, cloud synchronization, usage collection, or automatic updates. The GitHub repository and releases contain source and distribution files only.
 
-## Controls
+## Pausing Collection and Deleting History
 
-Pause collection from the notification area menu. Delete individual items or confirm Clear all to remove stored history. Clear all does not erase the current system clipboard or content already pasted into another app. It does not guarantee forensic erasure of storage media.
+Collection can be paused from the notification area menu. Individual items can be deleted, and clearing all history requires confirmation. Clearing history removes the app's stored records; the current system clipboard and content pasted into other apps remain unchanged. Secure erasure of storage media is not guaranteed.
 
-The app skips content marked for exclusion by supported source apps. It cannot identify every password or personal detail automatically. Pause collection before copying sensitive content.
+The app skips items marked for exclusion by their source apps. It does not automatically classify passwords or personal information by content. Collection can be paused before copying sensitive content.
 
 ## Development and Publication
 

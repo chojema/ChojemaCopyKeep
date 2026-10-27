@@ -1,53 +1,62 @@
 # Chojema CopyKeep
 
-[한국어](README.md)
+[한국어](README.md) | [Download](https://github.com/chojema/ChojemaCopyKeep/releases/latest)
 
-A Windows clipboard history app for storing text and images and selecting an item to paste with a keyboard shortcut. Developed by Park Chulwoo.
+A Windows clipboard manager that saves copied text and images and lets you select and paste them with a keyboard shortcut.
 
-## Run
+## Download and Run
 
-The current target is x64 Windows 10 or Windows 11. Run `ChojemaCopyKeep.exe` to add its icon to the notification area. Administrator privileges are not required.
+The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and run `ChojemaCopyKeep.exe`. The app icon appears in the notification area. Administrator privileges are not required.
+
+## Usage
 
 1. Copy text or an image in another app.
 2. Place the insertion point in the destination and press `Ctrl + Shift + Z`.
 3. Press `Enter` to paste the first item, or choose another item with the arrow keys or mouse.
-4. Press `Esc` to close the list. Right-click the notification area icon to pause collection or quit.
+4. Press `Esc` to close the list.
 
-The list appears near the text insertion point, falling back to the mouse pointer when that location is unavailable. Collection starts with copies made after the app starts.
+The list appears near the right side of the text insertion point. When that position is unavailable, it appears near the mouse pointer. History starts with content copied after the app launches.
 
-## Settings
+Right-click the notification area icon to open Settings, pause collection, or quit.
 
-- Korean is the initial language. Switching to English updates the interface immediately; saving preserves the selection after restart.
+## Settings and History
+
+- Korean is the default language. Switching to English updates the interface immediately; saving preserves the selection after restart.
 - Customize the shortcut using a combination that includes Ctrl or Alt. The default is `Ctrl + Shift + Z`.
 - Moving used items to the top is enabled by default.
 - Login startup is disabled by default and can be enabled in Settings.
 - The default history limit is 200 items, adjustable from 10 to 1000. Duplicate content is merged and moved to the latest position.
-- Limits are 32 MiB per item, 16,777,216 pixels per image, and 256 MiB of stored payloads. These are not limits on the full database file or process memory.
 - Use Delete or the Delete button to remove the selected item. Clear all requires confirmation.
 
-## Storage and Privacy
+Storage limits are 32 MiB per item, 16,777,216 pixels per image, and 256 MiB of stored payloads. Database file size and process memory usage may differ from these limits.
 
-History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`. The app loads history metadata rather than keeping every payload in memory. It creates image previews on selection. There is no cloud synchronization, account login, remote content transmission, or usage collection. The app does not encrypt its database.
+## Data Storage and Privacy
 
-Copied sensitive content may be recorded. Use Pause and deletion controls when appropriate. Items marked for exclusion by their source apps are skipped, but the app cannot automatically identify sensitive content from every app. See the [privacy guide](docs/PRIVACY.en.md).
+History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`. There is no cloud synchronization, account login, remote transmission, or usage collection. The app does not encrypt its database.
 
-## Supported Scope
+Sensitive copied content may also be saved. The [privacy guide](docs/PRIVACY.en.md) describes collection exclusions, pause controls, and deletion behavior.
 
-- Text is stored as plain text. HTML, RTF, copied files, and multiple-item clipboard packages are outside the current scope.
-- Images support PNG and Windows bitmap formats. The destination must accept image pastes.
-- Pasting sends Ctrl + V to the original app. Elevated apps and secure input screens may restrict this. Successful input transmission does not prove that the destination accepted the paste.
-- The macOS version has not been implemented. Development and builds will be handled separately.
+## Support and Limitations
 
-## Build and Check
+- Text is stored as plain text. HTML, RTF, copied files, and multiple-item clipboard formats are not supported.
+- Images support PNG and Windows bitmap formats. The destination app must also accept image input.
+- Pasting sends `Ctrl + V` to the original app. Input restrictions in the destination app can prevent pasting, including in elevated apps and secure input screens.
+- Paste compatibility across apps and extended runtime behavior require additional validation.
+- macOS is not currently supported.
 
-See the [English build guide](docs/BUILD.en.md). Visual Studio Desktop development with C++, the Windows SDK, CMake, and Ninja are required.
+## Build from Source
+
+Visual Studio Desktop development with C++, the Windows SDK, CMake, and Ninja are required. See the [build guide](docs/BUILD.en.md) for setup and checks.
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Test
 ```
 
-The executable is `build/windows/ChojemaCopyKeep.exe`. Version 0.1.0 is under development. Real-world paste compatibility and extended runtime behavior require additional validation.
+The executable is generated at `build/windows/ChojemaCopyKeep.exe`.
 
-## Developer and License
+## Project Information
 
-Park Chulwoo. A project distribution license has not been designated. Reuse terms will be documented separately from repository visibility. Windows and SQLite components remain subject to their respective rights.
+- Developer and maintainer: Park Chulwoo
+- License: Not designated
+
+Windows and SQLite components remain subject to their respective rights.
