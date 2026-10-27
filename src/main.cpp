@@ -93,6 +93,8 @@ public:
     HWND host=nullptr, popup=nullptr, list=nullptr, preview=nullptr, buttons[4]{}, target=nullptr;
     HFONT font=nullptr, smallFont=nullptr, titleFont=nullptr;
     HBITMAP previewBitmap=nullptr;
+    bool previewExpanded=false, popupAnchorValid=false;
+    POINT popupAnchor{};
     HICON icon=nullptr;
     std::vector<Item> items;
     DWORD lastSequence=0;
@@ -159,7 +161,7 @@ public:
         list=CreateWindowExW(WS_EX_CLIENTEDGE,L"LISTBOX",L"",WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_TABSTOP|LBS_NOTIFY|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS|LBS_NOINTEGRALHEIGHT,
             0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(list_id)),instance,nullptr);
         SetWindowSubclass(list,list_proc,1,reinterpret_cast<DWORD_PTR>(this));
-        preview=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|WS_VISIBLE|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL,0,0,0,0,popup,nullptr,instance,nullptr);
+        preview=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL,0,0,0,0,popup,nullptr,instance,nullptr);
         const int ids[]={settings_id,delete_id,clear_id,close_id};
         for (int i=0;i<4;++i) buttons[i]=CreateWindowExW(0,L"BUTTON",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(ids[i])),instance,nullptr);
         fonts(); labels(); layout();
@@ -171,10 +173,28 @@ public:
         if (preview) SetWindowTextW(preview,L"");
         if (popup) InvalidateRect(popup,nullptr,TRUE);
     }
+    int compact_list_width() const {
+        RECT window{}, client{}; GetWindowRect(popup,&window); GetClientRect(popup,&client);
+        MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromWindow(popup,MONITOR_DEFAULTTONEAREST),&monitor);
+        int outer=std::min<int>(scale(420),monitor.rcWork.right-monitor.rcWork.left);
+        return std::max<int>(scale(80),outer-(window.right-window.left-client.right)-2*scale(16));
+    }
+    void fit_popup() {
+        RECT window{}; GetWindowRect(popup,&window);
+        POINT anchor=popupAnchorValid?popupAnchor:POINT{window.left,window.top};
+        MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
+        int width=std::min<int>(scale(previewExpanded?680:420),monitor.rcWork.right-monitor.rcWork.left);
+        int height=std::min<int>(scale(450),monitor.rcWork.bottom-monitor.rcWork.top);
+        int x=std::clamp<int>(anchor.x,monitor.rcWork.left,monitor.rcWork.right-width);
+        int y=std::clamp<int>(anchor.y,monitor.rcWork.top,monitor.rcWork.bottom-height);
+        SetWindowPos(popup,nullptr,x,y,width,height,SWP_NOZORDER|SWP_NOACTIVATE);
+        layout();
+    }
     void layout() {
         if (!list) return;
         RECT rc{}; GetClientRect(popup,&rc); int margin=scale(16), gap=scale(14), top=scale(72), bottom=scale(66);
-        int available=std::max<int>(scale(120),rc.right-2*margin-gap), left=available*60/100, right=available-left;
+        int available=std::max<int>(scale(120),rc.right-2*margin-(previewExpanded?gap:0));
+        int left=previewExpanded?std::min<int>(compact_list_width(),available*2/3):available, right=available-left;
         int height=std::max<int>(scale(80),rc.bottom-top-bottom);
         MoveWindow(list,margin,top,left,height,TRUE);
         MoveWindow(preview,margin+left+gap,top,right,height,TRUE);
@@ -183,6 +203,15 @@ public:
         MoveWindow(buttons[1],margin+width+scale(8),y,scale(76),scale(28),TRUE);
         MoveWindow(buttons[2],margin+width+scale(92),y,width,scale(28),TRUE);
         MoveWindow(buttons[3],rc.right-margin-scale(76),y,scale(76),scale(28),TRUE);
+    }
+    bool text_needs_preview(const std::wstring& value) const {
+        if (value.size()>180 || value.find_first_of(L"\r\n\t")!=std::wstring::npos) return true;
+        HDC dc=GetDC(list); auto old=SelectObject(dc,font); RECT bounds{};
+        DrawTextW(dc,value.c_str(),static_cast<int>(value.size()),&bounds,DT_SINGLELINE|DT_CALCRECT|DT_NOPREFIX);
+        SelectObject(dc,old); ReleaseDC(list,dc);
+        RECT client{}, window{}; GetClientRect(list,&client); GetWindowRect(list,&window);
+        int rowWidth=compact_list_width()-(window.right-window.left-client.right);
+        return bounds.right-bounds.left>rowWidth-scale(20);
     }
     int selected() const { int i=static_cast<int>(SendMessageW(list,LB_GETCURSEL,0,0)); return i>=0 && i<static_cast<int>(items.size())?i:-1; }
     void refresh(int selection=0) {
@@ -198,13 +227,18 @@ public:
     void update_preview() {
         if (previewBitmap) { DeleteObject(previewBitmap); previewBitmap=nullptr; }
         int index=selected();
-        if (index<0) { SetWindowTextW(preview,t(IDS_EMPTY).c_str()); ShowWindow(preview,SW_SHOW); return; }
-        const auto& item=items[index]; auto data=store.payload(item.id);
-        if (!item.kind) {
-            std::string value(data.begin(),data.end()); auto valueWide=wide(value);
-            if (valueWide.size()>4000) valueWide=valueWide.substr(0,4000)+L"…";
-            SetWindowTextW(preview,valueWide.c_str()); ShowWindow(preview,SW_SHOW);
-        } else {
+        Bytes data; std::wstring value;
+        if (index>=0) {
+            const auto& item=items[index]; data=store.payload(item.id);
+            if (!item.kind) value=wide(std::string(data.begin(),data.end()));
+            previewExpanded=item.kind || text_needs_preview(value);
+        } else previewExpanded=false;
+        fit_popup();
+        SetWindowTextW(preview,L""); ShowWindow(preview,SW_HIDE);
+        if (previewExpanded && !items[index].kind) {
+            if (value.size()>4000) value=value.substr(0,4000)+L"…";
+            SetWindowTextW(preview,value.c_str()); ShowWindow(preview,SW_SHOW);
+        } else if (previewExpanded) {
             RECT rect{}; GetWindowRect(preview,&rect);
             previewBitmap=thumbnail(data,std::max<int>(1,rect.right-rect.left-4),std::max<int>(1,rect.bottom-rect.top-4));
             ShowWindow(preview,SW_HIDE);
@@ -222,12 +256,10 @@ public:
             if (ClientToScreen(info.hwndCaret,&caret)) point=caret;
         }
         point.x+=scale(12); point.y+=scale(8);
-        MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint(point,MONITOR_DEFAULTTONEAREST),&monitor);
-        int width=std::min<int>(scale(660),monitor.rcWork.right-monitor.rcWork.left), height=std::min<int>(scale(450),monitor.rcWork.bottom-monitor.rcWork.top);
-        point.x=std::clamp(point.x,monitor.rcWork.left,monitor.rcWork.right-width);
-        point.y=std::clamp(point.y,monitor.rcWork.top,monitor.rcWork.bottom-height);
-        SetWindowPos(popup,HWND_TOPMOST,point.x,point.y,width,height,SWP_SHOWWINDOW);
-        refresh(); SetForegroundWindow(popup); SetFocus(list);
+        popupAnchor=point; popupAnchorValid=true;
+        refresh();
+        SetWindowPos(popup,HWND_TOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_SHOWWINDOW);
+        SetForegroundWindow(popup); SetFocus(list);
     }
     void capture() {
         if (paused || testing) { KillTimer(host,capture_timer); captureAttempts=0; return; }
@@ -443,6 +475,14 @@ public:
     }
     static LRESULT CALLBACK list_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR ref) {
         auto* self=reinterpret_cast<App*>(ref);
+        if ((message==WM_PAINT || message==WM_PRINTCLIENT) && self->items.empty()) {
+            LRESULT result=DefSubclassProc(window,message,w,l);
+            HDC dc=message==WM_PAINT?GetDC(window):reinterpret_cast<HDC>(w);
+            int saved=SaveDC(dc); RECT bounds{}; GetClientRect(window,&bounds); InflateRect(&bounds,-self->scale(12),-self->scale(12));
+            SelectObject(dc,self->font); SetTextColor(dc,muted); SetBkMode(dc,TRANSPARENT);
+            auto hint=self->t(IDS_EMPTY); DrawTextW(dc,hint.c_str(),-1,&bounds,DT_WORDBREAK|DT_NOPREFIX);
+            RestoreDC(dc,saved); if (message==WM_PAINT) ReleaseDC(window,dc); return result;
+        }
         if (message==WM_KEYDOWN) {
             if (w==VK_RETURN) { PostMessageW(self->popup,paste_message,0,0); return 0; }
             if (w==VK_ESCAPE) { ShowWindow(self->popup,SW_HIDE); return 0; }
@@ -490,18 +530,74 @@ int self_test(const std::filesystem::path& root) {
     std::filesystem::remove(folder/L"history.db"); std::filesystem::remove(folder/L"history.db-journal"); std::filesystem::remove(folder);
     std::cout<<"PASS: "<<checks<<" storage, localization, and image checks\n"; return 0;
 }
-int smoke_test(const std::filesystem::path& output,bool english) {
+int smoke_test(const std::filesystem::path& output,bool english,const std::wstring& scenario) {
     std::filesystem::create_directories(output.parent_path());
     auto folder=output.parent_path()/(L"ui-"+std::to_wstring(GetCurrentProcessId()));
     App app(folder,true); app.english=english;
-    std::wstring sample=english?L"A place for everything you copy.\r\nChoose an item and press Enter.":L"복사한 내용을 한곳에 보관하세요.\r\n항목을 선택하고 Enter를 누르면 붙여넣습니다.";
-    auto encoded=utf8(sample); app.store.put(0,Bytes(encoded.begin(),encoded.end()),sample.substr(0,sample.find(L'\r')));
+    app.store.clear();
     auto image=test_image(); app.store.put(1,image.png,L"",image.width,image.height);
+    auto add=[&](const std::wstring& value) {
+        auto encoded=utf8(value); auto summary=value.substr(0,180);
+        std::replace(summary.begin(),summary.end(),L'\r',L' '); std::replace(summary.begin(),summary.end(),L'\n',L' '); std::replace(summary.begin(),summary.end(),L'\t',L' ');
+        return app.store.put(0,Bytes(encoded.begin(),encoded.end()),summary);
+    };
+    auto multilineId=add(english?L"First line\r\nSecond line":L"첫 번째 줄\r\n두 번째 줄");
+    auto longId=add(english?L"This is a longer copied passage that does not fit in a single list row. Selecting it automatically shows the preview without another action.":L"목록의 한 줄에 모두 표시할 수 없는 긴 복사 내용입니다. 항목을 선택하면 별도 조작 없이 미리보기가 자동으로 나타나고, 짧은 항목을 선택하면 목록만 표시됩니다.");
+    auto shortId=add(english?L"Short copied text":L"짧은 복사 내용");
+    auto originalLongPayload=app.store.payload(longId);
     app.initialize(); app.show(); UpdateWindow(app.popup);
     MSG message{}; while (PeekMessageW(&message,nullptr,0,0,PM_REMOVE)) { TranslateMessage(&message); DispatchMessageW(&message); }
     wchar_t label[80]{}; GetWindowTextW(app.buttons[0],label,80);
     require(label==app.t(IDS_SETTINGS),"Localized window label");
-    require(app.selected()==0 && app.items.size()==2,"Popup default selection");
+    int checks=0; auto check=[&](bool ok,const char* why){require(ok,why); ++checks;};
+    auto bounds=[](HWND window){RECT rect{}; GetWindowRect(window,&rect); return rect;};
+    auto select=[&](int index) {
+        SendMessageW(app.list,LB_SETCURSEL,index,0);
+        SendMessageW(app.popup,WM_COMMAND,MAKEWPARAM(list_id,LBN_SELCHANGE),reinterpret_cast<LPARAM>(app.list));
+    };
+    check(app.selected()==0 && app.items.size()==4 && app.items[0].id==shortId,"Popup default selection");
+    check(!app.previewExpanded && !IsWindowVisible(app.preview) && !app.previewBitmap,"Short text uses list only");
+    auto compact=bounds(app.popup), compactList=bounds(app.list);
+    check(!app.text_needs_preview(L"WW") && app.text_needs_preview(std::wstring(80,L'W')),"Preview follows rendered width");
+    check(!app.text_needs_preview(std::wstring(80,L'i')),"Narrow text fits without preview");
+    check(app.text_needs_preview(L"one\ntwo") && app.text_needs_preview(L"one\ttwo"),"Formatted text needs preview");
+    check(app.text_needs_preview(std::wstring(181,L'i')),"Truncated stored summary needs preview");
+    SendMessageW(app.list,WM_KEYDOWN,VK_DOWN,0);
+    check(app.selected()==1 && app.items[1].id==longId && app.previewExpanded && IsWindowVisible(app.preview),"Arrow selection automatically expands long text");
+    auto expanded=bounds(app.popup), expandedList=bounds(app.list);
+    check(expanded.right-expanded.left>compact.right-compact.left,"Preview expands popup width");
+    check(expandedList.right-expandedList.left==compactList.right-compactList.left,"List width stays stable");
+    check(GetFocus()==app.list,"Automatic preview preserves keyboard focus");
+    SendMessageW(app.list,WM_KEYDOWN,VK_RETURN,0);
+    MSG paste{}; check(PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)!=FALSE && app.selected()==1,"Enter keeps selected paste action");
+    SendMessageW(app.list,WM_KEYDOWN,VK_UP,0);
+    check(app.selected()==0 && !app.previewExpanded && !IsWindowVisible(app.preview),"Arrow selection collapses short text");
+    check(bounds(app.popup).right-bounds(app.popup).left==compact.right-compact.left,"Compact width restored");
+    select(2); check(app.items[app.selected()].id==multilineId && app.previewExpanded && IsWindowVisible(app.preview),"Short multiline text expands automatically");
+    select(3); check(app.previewExpanded && app.previewBitmap && !IsWindowVisible(app.preview),"Image selection automatically shows thumbnail");
+    select(0); check(!app.previewExpanded && !app.previewBitmap,"Short text releases image preview");
+    RECT row{}; SendMessageW(app.list,LB_GETITEMRECT,1,reinterpret_cast<LPARAM>(&row));
+    LPARAM click=MAKELPARAM(app.scale(20),(row.top+row.bottom)/2);
+    SendMessageW(app.list,WM_LBUTTONDOWN,MK_LBUTTON,click);
+    SendMessageW(app.list,WM_LBUTTONUP,0,click);
+    check(app.selected()==1 && app.previewExpanded,"Mouse selection automatically shows preview");
+    check(PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)!=FALSE,"Mouse paste action preserved");
+    MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromWindow(app.popup,MONITOR_DEFAULTTONEAREST),&monitor);
+    auto originalAnchor=app.popupAnchor;
+    app.popupAnchor={monitor.rcWork.right-1,monitor.rcWork.bottom-1};
+    select(0); auto edgeCompact=bounds(app.popup);
+    select(3); auto edgeExpanded=bounds(app.popup);
+    check(edgeCompact.right<=monitor.rcWork.right && edgeExpanded.right<=monitor.rcWork.right && edgeExpanded.bottom<=monitor.rcWork.bottom && edgeExpanded.left>=monitor.rcWork.left,"Expansion stays inside work area");
+    select(0); auto edgeAgain=bounds(app.popup);
+    check(EqualRect(&edgeCompact,&edgeAgain)!=FALSE,"Repeated expansion does not drift");
+    app.popupAnchor=originalAnchor;
+    check(app.store.list().front().id==shortId && app.store.payload(longId)==originalLongPayload,"Preview does not modify history order or payload");
+    if (scenario==L"empty") { app.store.clear(); app.refresh(); check(!app.previewExpanded && !IsWindowVisible(app.preview) && !app.previewBitmap && !IsWindowEnabled(app.buttons[1]),"Empty history stays compact"); }
+    else if (scenario==L"short") select(0);
+    else if (scenario==L"long") select(1);
+    else if (scenario==L"multiline") select(2);
+    else { require(scenario==L"image","Unknown preview scenario"); select(3); }
+    UpdateWindow(app.popup);
     RECT rc{}; GetClientRect(app.popup,&rc); HDC screen=GetDC(nullptr), dc=CreateCompatibleDC(screen);
     HBITMAP bitmap=CreateCompatibleBitmap(screen,rc.right,rc.bottom); auto old=SelectObject(dc,bitmap);
     app.paint_content(dc);
@@ -516,7 +612,8 @@ int smoke_test(const std::filesystem::path& output,bool english) {
     },reinterpret_cast<LPARAM>(dc));
     SelectObject(dc,old);
     bool saved=save_bitmap(bitmap,output); DeleteObject(bitmap); DeleteDC(dc); ReleaseDC(nullptr,screen);
-    DestroyWindow(app.host); require(saved,"UI capture failed"); return 0;
+    DestroyWindow(app.host); require(saved,"UI capture failed");
+    std::cout<<"PASS: "<<checks<<" popup selection, preview, focus, and work-area checks\n"; return 0;
 }
 }
 int WINAPI wWinMain(HINSTANCE module,HINSTANCE,PWSTR,int) {
@@ -529,7 +626,7 @@ int WINAPI wWinMain(HINSTANCE module,HINSTANCE,PWSTR,int) {
     bool commandMode=argc>1 && (std::wstring(argv[1])==L"--self-test" || std::wstring(argv[1])==L"--smoke-test");
     try {
         if (argc>=3 && std::wstring(argv[1])==L"--self-test") result=self_test(argv[2]);
-        else if (argc>=4 && std::wstring(argv[1])==L"--smoke-test") result=smoke_test(argv[3],std::wstring(argv[2])==L"en");
+        else if (argc>=4 && std::wstring(argv[1])==L"--smoke-test") result=smoke_test(argv[3],std::wstring(argv[2])==L"en",argc>=5?argv[4]:L"image");
         else {
             HANDLE mutex=CreateMutexW(nullptr,FALSE,L"Local\\ChojemaCopyKeep.SingleInstance");
             if (!mutex) throw std::runtime_error("Single-instance guard failed");

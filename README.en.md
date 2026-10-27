@@ -17,6 +17,8 @@ The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from
 
 The list appears near the right side of the text insertion point. When that position is unavailable, it appears near the mouse pointer. History starts with content copied after the app launches.
 
+Short text uses the list alone. Selecting text that does not fit on one list row, multiline text, or an image automatically shows a preview on the right. Selecting a short item returns to the list alone. No separate action is needed to open the preview.
+
 Right-click the notification area icon to open Settings, pause collection, or quit.
 
 ## Settings and History
