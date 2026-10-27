@@ -1,0 +1,29 @@
+name: Windows
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Audit public files
+        run: python tools/public_audit.py
+      - name: Build and test
+        shell: powershell
+        run: ./tools/build.ps1 -Test
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChojemaCopyKeep-windows-x64
+          path: |
+            build/windows/ChojemaCopyKeep.exe
+            README.md
+            README.en.md
+            docs/

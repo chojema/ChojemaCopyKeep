@@ -1,0 +1,128 @@
+#pragma code_page(65001)
+#include <windows.h>
+#include <commctrl.h>
+#include "ids.h"
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+IDD_SETTINGS DIALOGEX 0, 0, 316, 216
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Chojema CopyKeep"
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "", IDC_LANGUAGE_LABEL, 14, 15, 85, 14
+    COMBOBOX IDC_LANGUAGE, 108, 12, 190, 70, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL "", IDC_PROMOTE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 46, 285, 18
+    CONTROL "", IDC_STARTUP, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 72, 285, 18
+    LTEXT "", IDC_LIMIT_LABEL, 14, 105, 90, 14
+    EDITTEXT IDC_LIMIT, 108, 101, 70, 20, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "", IDC_HOTKEY_LABEL, 14, 140, 90, 14
+    CONTROL "", IDC_HOTKEY, "msctls_hotkey32", WS_BORDER | WS_TABSTOP, 108, 135, 190, 22
+    DEFPUSHBUTTON "", IDOK, 140, 181, 76, 23
+    PUSHBUTTON "", IDCANCEL, 222, 181, 76, 23
+END
+
+LANGUAGE LANG_KOREAN, SUBLANG_KOREAN
+STRINGTABLE
+BEGIN
+    IDS_APP "Chojema CopyKeep"
+    IDS_SUBTITLE "복사한 내용을 골라 바로 붙여넣으세요."
+    IDS_EMPTY "아직 기록이 없습니다.\n텍스트나 이미지를 복사하면 여기에 표시됩니다."
+    IDS_SETTINGS "설정"
+    IDS_DELETE "삭제"
+    IDS_CLEAR "전체 삭제"
+    IDS_CLOSE "닫기"
+    IDS_PREVIEW "미리보기"
+    IDS_TEXT "텍스트"
+    IDS_IMAGE "이미지"
+    IDS_HELP "방향키로 선택 / Enter로 붙여넣기 / Esc로 닫기"
+    IDS_LANGUAGE "언어"
+    IDS_PROMOTE "사용한 항목을 맨 위로 이동"
+    IDS_STARTUP "로그인 시 자동 실행"
+    IDS_LIMIT "보관 개수(10–1000)"
+    IDS_HOTKEY "목록 단축키"
+    IDS_SAVE "저장"
+    IDS_CANCEL "취소"
+    IDS_CLEAR_CONFIRM "모든 복사 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+    IDS_ERROR "작업을 완료하지 못했습니다. 다시 시도해 주세요."
+    IDS_HOTKEY_ERROR "단축키를 등록하지 못했습니다. 설정에서 다른 조합을 선택해 주세요."
+    IDS_PASTE_ERROR "대상 앱으로 붙여넣기 입력을 보내지 못했습니다. 항목은 클립보드에 있으므로 직접 붙여넣을 수 있습니다."
+    IDS_STARTUP_ERROR "자동 실행 설정을 저장하지 못했습니다."
+    IDS_QUIT "종료"
+    IDS_PAUSE "수집 일시 중지"
+    IDS_RESUME "수집 다시 시작"
+    IDS_ABOUT "앱 정보"
+    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.1.0\n텍스트와 이미지의 로컬 복사 기록"
+    IDS_CAPTURE_ERROR "복사 내용을 저장하지 못했습니다. 항목은 최대 32 MiB, 이미지는 최대 16,777,216픽셀까지 지원합니다."
+    IDS_DATABASE_ERROR "기록 저장소를 열지 못했습니다. 저장 위치의 접근 권한을 확인해 주세요."
+    IDS_PASTE_HINT "원래 입력 위치로 붙여넣습니다."
+    IDS_BAD_SETTINGS "보관 개수는 10~1000으로, 단축키는 Ctrl 또는 Alt를 포함해 지정해 주세요."
+    IDS_NO_TARGET "붙여넣을 앱에서 단축키를 누르세요."
+END
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+    IDS_APP "Chojema CopyKeep"
+    IDS_SUBTITLE "Choose something you copied and paste it."
+    IDS_EMPTY "No history yet.\nCopy text or an image to get started."
+    IDS_SETTINGS "Settings"
+    IDS_DELETE "Delete"
+    IDS_CLEAR "Clear all"
+    IDS_CLOSE "Close"
+    IDS_PREVIEW "Preview"
+    IDS_TEXT "Text"
+    IDS_IMAGE "Image"
+    IDS_HELP "Arrows to select / Enter to paste / Esc to close"
+    IDS_LANGUAGE "Language"
+    IDS_PROMOTE "Move used items to the top"
+    IDS_STARTUP "Start when I sign in"
+    IDS_LIMIT "History limit (10–1000)"
+    IDS_HOTKEY "History shortcut"
+    IDS_SAVE "Save"
+    IDS_CANCEL "Cancel"
+    IDS_CLEAR_CONFIRM "Delete all clipboard history? This cannot be undone."
+    IDS_ERROR "The operation could not be completed. Please try again."
+    IDS_HOTKEY_ERROR "The shortcut could not be registered. Choose another combination in Settings."
+    IDS_PASTE_ERROR "Paste input could not be sent to the destination app. The item is on the clipboard, so you can paste it manually."
+    IDS_STARTUP_ERROR "The login startup setting could not be saved."
+    IDS_QUIT "Quit"
+    IDS_PAUSE "Pause collection"
+    IDS_RESUME "Resume collection"
+    IDS_ABOUT "About"
+    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.1.0\nLocal clipboard history for text and images"
+    IDS_CAPTURE_ERROR "The item could not be saved. Items are limited to 32 MiB and images to 16,777,216 pixels."
+    IDS_DATABASE_ERROR "The history database could not be opened. Check access to the storage location."
+    IDS_PASTE_HINT "Paste into the original insertion point."
+    IDS_BAD_SETTINGS "Use a history limit from 10 to 1000 and a shortcut containing Ctrl or Alt."
+    IDS_NO_TARGET "Use the shortcut while a destination app is active."
+END
+
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+1 VERSIONINFO
+FILEVERSION 0,1,0,0
+PRODUCTVERSION 0,1,0,0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE 0
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "Park Chulwoo\0"
+            VALUE "FileDescription", "Chojema CopyKeep\0"
+            VALUE "FileVersion", "0.1.0\0"
+            VALUE "InternalName", "ChojemaCopyKeep\0"
+            VALUE "LegalCopyright", "Copyright (c) 2026 Park Chulwoo\0"
+            VALUE "OriginalFilename", "ChojemaCopyKeep.exe\0"
+            VALUE "ProductName", "Chojema CopyKeep\0"
+            VALUE "ProductVersion", "0.1.0\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0409, 1200
+    END
+END
