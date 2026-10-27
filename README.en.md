@@ -19,6 +19,8 @@ The list appears near the right side of the text insertion point. When that posi
 
 Short text uses the list alone. Selecting text that does not fit on one list row, multiline text, or an image automatically shows a preview on the right. Selecting a short item returns to the list alone. No separate action is needed to open the preview.
 
+Each list row shows a document or picture icon followed by its content. The selected item has a highlighted background and outline. Keyboard hints, Settings, and deletion controls appear below the list.
+
 Right-click the notification area icon to open Settings, pause collection, or quit.
 
 ## Settings and History

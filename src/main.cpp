@@ -1,6 +1,10 @@
 #include "store.h"
 #include "image.h"
 #include "ids.h"
+#include "ui.h"
+#include <dwmapi.h>
+#include <uxtheme.h>
+#include <windowsx.h>
 #include <commctrl.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -17,7 +21,7 @@ namespace {
 constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
 constexpr UINT capture_timer = 10, paste_timer = 11;
-const COLORREF ink = RGB(30, 40, 57), muted = RGB(98, 111, 131), accent = RGB(39, 88, 168);
+const COLORREF accent = RGB(23,107,99);
 HINSTANCE instance;
 std::wstring text(UINT id, bool english) {
     WORD language = english ? MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US) : MAKELANGID(LANG_KOREAN, SUBLANG_KOREAN);
@@ -93,6 +97,9 @@ public:
     HWND host=nullptr, popup=nullptr, list=nullptr, preview=nullptr, buttons[4]{}, target=nullptr;
     HFONT font=nullptr, smallFont=nullptr, titleFont=nullptr;
     HBITMAP previewBitmap=nullptr;
+    ui::Palette colors;
+    HBRUSH surfaceBrush=nullptr, backgroundBrush=nullptr;
+    int hoveredRow=-1;
     bool previewExpanded=false, popupAnchorValid=false;
     POINT popupAnchor{};
     HICON icon=nullptr;
@@ -117,6 +124,7 @@ public:
         if (previewBitmap) DeleteObject(previewBitmap);
         if (font) DeleteObject(font); if (smallFont) DeleteObject(smallFont); if (titleFont) DeleteObject(titleFont);
         if (icon) DestroyIcon(icon);
+        if (surfaceBrush) DeleteObject(surfaceBrush); if (backgroundBrush) DeleteObject(backgroundBrush);
     }
     std::wstring t(UINT id) const { return text(id,english); }
     int scale(int value) const { return MulDiv(value, popup?static_cast<int>(GetDpiForWindow(popup)):96,96); }
@@ -139,9 +147,12 @@ public:
         WNDCLASSEXW popupClass{sizeof(popupClass)}; popupClass.hInstance=instance; popupClass.lpszClassName=L"ChojemaCopyKeepPopup"; popupClass.lpfnWndProc=popup_proc;
         popupClass.hCursor=LoadCursorW(nullptr,IDC_ARROW); popupClass.hIcon=icon; popupClass.hbrBackground=static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)); RegisterClassExW(&popupClass);
         host=CreateWindowExW(WS_EX_TOOLWINDOW,hostClass.lpszClassName,L"Chojema CopyKeep",WS_OVERLAPPED,0,0,0,0,nullptr,nullptr,instance,this);
-        popup=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_TOPMOST,popupClass.lpszClassName,L"Chojema CopyKeep",WS_POPUP|WS_CAPTION|WS_SYSMENU,
+        popup=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_TOPMOST,popupClass.lpszClassName,L"Chojema CopyKeep",WS_POPUP|WS_THICKFRAME|WS_SYSMENU,
             40,40,640,460,host,nullptr,instance,this);
         if (!host || !popup) throw std::runtime_error("Window creation failed");
+        DWM_WINDOW_CORNER_PREFERENCE corners=DWMWCP_ROUND;
+        DwmSetWindowAttribute(popup,DWMWA_WINDOW_CORNER_PREFERENCE,&corners,sizeof(corners));
+        MARGINS frame{1,1,1,1}; DwmExtendFrameIntoClientArea(popup,&frame);
         lastSequence=GetClipboardSequenceNumber();
         if (!testing) {
             if (!AddClipboardFormatListener(host)) throw std::runtime_error("Clipboard listener failed");
@@ -152,18 +163,28 @@ public:
     void fonts() {
         if (font) DeleteObject(font); if (smallFont) DeleteObject(smallFont); if (titleFont) DeleteObject(titleFont);
         auto make=[&](int size,int weight){ return CreateFontW(-scale(size),0,0,0,weight,FALSE,FALSE,FALSE,DEFAULT_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI"); };
-        font=make(14,FW_NORMAL); smallFont=make(12,FW_NORMAL); titleFont=make(19,FW_SEMIBOLD);
-        if (list) { SendMessageW(list,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE); SendMessageW(list,LB_SETITEMHEIGHT,0,scale(57)); }
+        font=make(14,FW_NORMAL); smallFont=make(12,FW_NORMAL); titleFont=make(17,FW_SEMIBOLD);
+        if (list) { SendMessageW(list,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE); SendMessageW(list,LB_SETITEMHEIGHT,0,scale(36)); }
         if (preview) SendMessageW(preview,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
         for (auto button:buttons) if (button) SendMessageW(button,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
     }
+    void theme(bool highContrast=false) {
+        colors=ui::Palette{}; colors.system(highContrast);
+        if (surfaceBrush) DeleteObject(surfaceBrush); if (backgroundBrush) DeleteObject(backgroundBrush);
+        surfaceBrush=CreateSolidBrush(colors.surface); backgroundBrush=CreateSolidBrush(colors.background);
+        if (popup) RedrawWindow(popup,nullptr,nullptr,RDW_INVALIDATE|RDW_ALLCHILDREN|RDW_ERASE);
+    }
     void create_controls() {
-        list=CreateWindowExW(WS_EX_CLIENTEDGE,L"LISTBOX",L"",WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_TABSTOP|LBS_NOTIFY|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS|LBS_NOINTEGRALHEIGHT,
+        theme();
+        list=CreateWindowExW(0,L"LISTBOX",L"",WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_TABSTOP|LBS_NOTIFY|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS|LBS_NOINTEGRALHEIGHT,
             0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(list_id)),instance,nullptr);
         SetWindowSubclass(list,list_proc,1,reinterpret_cast<DWORD_PTR>(this));
-        preview=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL,0,0,0,0,popup,nullptr,instance,nullptr);
+        preview=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL|WS_VSCROLL,0,0,0,0,popup,nullptr,instance,nullptr);
         const int ids[]={settings_id,delete_id,clear_id,close_id};
-        for (int i=0;i<4;++i) buttons[i]=CreateWindowExW(0,L"BUTTON",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(ids[i])),instance,nullptr);
+        for (int i=0;i<4;++i) {
+            buttons[i]=CreateWindowExW(0,L"BUTTON",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(ids[i])),instance,nullptr);
+            SetWindowSubclass(buttons[i],button_proc,1,reinterpret_cast<DWORD_PTR>(this));
+        }
         fonts(); labels(); layout();
     }
     void labels() {
@@ -176,15 +197,15 @@ public:
     int compact_list_width() const {
         RECT window{}, client{}; GetWindowRect(popup,&window); GetClientRect(popup,&client);
         MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromWindow(popup,MONITOR_DEFAULTTONEAREST),&monitor);
-        int outer=std::min<int>(scale(420),monitor.rcWork.right-monitor.rcWork.left);
-        return std::max<int>(scale(80),outer-(window.right-window.left-client.right)-2*scale(16));
+        int outer=std::min<int>(scale(440),monitor.rcWork.right-monitor.rcWork.left);
+        return std::max<int>(scale(80),outer-(window.right-window.left-client.right)-2*scale(12));
     }
     void fit_popup() {
         RECT window{}; GetWindowRect(popup,&window);
         POINT anchor=popupAnchorValid?popupAnchor:POINT{window.left,window.top};
         MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
-        int width=std::min<int>(scale(previewExpanded?680:420),monitor.rcWork.right-monitor.rcWork.left);
-        int height=std::min<int>(scale(450),monitor.rcWork.bottom-monitor.rcWork.top);
+        int width=std::min<int>(scale(previewExpanded?740:440),monitor.rcWork.right-monitor.rcWork.left);
+        int height=std::min<int>(scale(430),monitor.rcWork.bottom-monitor.rcWork.top);
         int x=std::clamp<int>(anchor.x,monitor.rcWork.left,monitor.rcWork.right-width);
         int y=std::clamp<int>(anchor.y,monitor.rcWork.top,monitor.rcWork.bottom-height);
         SetWindowPos(popup,nullptr,x,y,width,height,SWP_NOZORDER|SWP_NOACTIVATE);
@@ -192,17 +213,17 @@ public:
     }
     void layout() {
         if (!list) return;
-        RECT rc{}; GetClientRect(popup,&rc); int margin=scale(16), gap=scale(14), top=scale(72), bottom=scale(66);
+        RECT rc{}; GetClientRect(popup,&rc); int margin=scale(12), gap=scale(12), top=scale(82), bottom=scale(92);
         int available=std::max<int>(scale(120),rc.right-2*margin-(previewExpanded?gap:0));
         int left=previewExpanded?std::min<int>(compact_list_width(),available*2/3):available, right=available-left;
         int height=std::max<int>(scale(80),rc.bottom-top-bottom);
         MoveWindow(list,margin,top,left,height,TRUE);
-        MoveWindow(preview,margin+left+gap,top,right,height,TRUE);
-        int y=rc.bottom-scale(42), width=scale(94);
-        MoveWindow(buttons[0],margin,y,width,scale(28),TRUE);
-        MoveWindow(buttons[1],margin+width+scale(8),y,scale(76),scale(28),TRUE);
-        MoveWindow(buttons[2],margin+width+scale(92),y,width,scale(28),TRUE);
-        MoveWindow(buttons[3],rc.right-margin-scale(76),y,scale(76),scale(28),TRUE);
+        MoveWindow(preview,margin+left+gap+scale(16),top+scale(38),std::max<int>(1,right-scale(32)),std::max<int>(1,height-scale(52)),TRUE);
+        int y=rc.bottom-scale(46);
+        MoveWindow(buttons[0],margin,y,scale(108),scale(32),TRUE);
+        MoveWindow(buttons[1],margin+scale(116),y,scale(104),scale(32),TRUE);
+        MoveWindow(buttons[2],margin+scale(228),y,scale(124),scale(32),TRUE);
+        MoveWindow(buttons[3],rc.right-scale(48),scale(18),scale(32),scale(32),TRUE);
     }
     bool text_needs_preview(const std::wstring& value) const {
         if (value.size()>180 || value.find_first_of(L"\r\n\t")!=std::wstring::npos) return true;
@@ -211,7 +232,7 @@ public:
         SelectObject(dc,old); ReleaseDC(list,dc);
         RECT client{}, window{}; GetClientRect(list,&client); GetWindowRect(list,&window);
         int rowWidth=compact_list_width()-(window.right-window.left-client.right);
-        return bounds.right-bounds.left>rowWidth-scale(20);
+        return bounds.right-bounds.left>rowWidth-scale(60);
     }
     int selected() const { int i=static_cast<int>(SendMessageW(list,LB_GETCURSEL,0,0)); return i>=0 && i<static_cast<int>(items.size())?i:-1; }
     void refresh(int selection=0) {
@@ -350,17 +371,40 @@ public:
         auto* self=reinterpret_cast<App*>(GetWindowLongPtrW(dialog,DWLP_USER));
         if (message==WM_INITDIALOG) {
             self=reinterpret_cast<App*>(l); SetWindowLongPtrW(dialog,DWLP_USER,reinterpret_cast<LONG_PTR>(self));
+            DWM_WINDOW_CORNER_PREFERENCE corners=DWMWCP_ROUND; DwmSetWindowAttribute(dialog,DWMWA_WINDOW_CORNER_PREFERENCE,&corners,sizeof(corners));
+            EnumChildWindows(dialog,[](HWND child,LPARAM context)->BOOL {
+                auto* app=reinterpret_cast<App*>(context); SendMessageW(child,WM_SETFONT,reinterpret_cast<WPARAM>(app->font),TRUE);
+                SetWindowTheme(child,L"Explorer",nullptr); return TRUE;
+            },reinterpret_cast<LPARAM>(self));
+            for (int id:{IDOK,IDCANCEL}) SetWindowSubclass(GetDlgItem(dialog,id),button_proc,1,reinterpret_cast<DWORD_PTR>(self));
+            SetWindowSubclass(GetDlgItem(dialog,IDC_HOTKEY),hotkey_proc,1,reinterpret_cast<DWORD_PTR>(self));
+            SendMessageW(dialog,DM_SETDEFID,IDOK,0);
             SendDlgItemMessageW(dialog,IDC_LANGUAGE,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"한국어"));
             SendDlgItemMessageW(dialog,IDC_LANGUAGE,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(L"English"));
             SendDlgItemMessageW(dialog,IDC_LANGUAGE,CB_SETCURSEL,self->english?1:0,0);
             CheckDlgButton(dialog,IDC_PROMOTE,self->promote?BST_CHECKED:BST_UNCHECKED);
-            try { CheckDlgButton(dialog,IDC_STARTUP,startup_enabled()?BST_CHECKED:BST_UNCHECKED); } catch (...) {}
+            try { CheckDlgButton(dialog,IDC_STARTUP,!self->testing && startup_enabled()?BST_CHECKED:BST_UNCHECKED); } catch (...) {}
             SetDlgItemInt(dialog,IDC_LIMIT,integer(self->store.setting("limit","200"),200),FALSE);
             BYTE mods=0; if (self->modifiers&MOD_CONTROL) mods|=HOTKEYF_CONTROL; if (self->modifiers&MOD_SHIFT) mods|=HOTKEYF_SHIFT; if (self->modifiers&MOD_ALT) mods|=HOTKEYF_ALT;
             SendDlgItemMessageW(dialog,IDC_HOTKEY,HKM_SETHOTKEY,MAKEWORD(self->key,mods),0); self->dialog_labels(dialog); return TRUE;
         }
         if (!self) return FALSE;
         try {
+            if (message==WM_PAINT || message==WM_PRINTCLIENT) {
+                PAINTSTRUCT paint{}; HDC dc=message==WM_PAINT?BeginPaint(dialog,&paint):reinterpret_cast<HDC>(w); RECT rc{}; GetClientRect(dialog,&rc); ui::fill(dc,rc,self->colors.background);
+                RECT input{}; GetWindowRect(GetDlgItem(dialog,IDC_LIMIT),&input); MapWindowPoints(nullptr,dialog,reinterpret_cast<POINT*>(&input),2);
+                InflateRect(&input,1,1); ui::rounded(dc,input,self->scale(5),self->colors.surface,self->colors.line);
+                if (message==WM_PAINT) EndPaint(dialog,&paint); return TRUE;
+            }
+            if (message==WM_CTLCOLORDLG || message==WM_CTLCOLORSTATIC) {
+                HDC dc=reinterpret_cast<HDC>(w); SetTextColor(dc,self->colors.ink); SetBkColor(dc,self->colors.background);
+                return reinterpret_cast<INT_PTR>(self->backgroundBrush);
+            }
+            if (message==WM_CTLCOLOREDIT || message==WM_CTLCOLORLISTBOX) {
+                HDC dc=reinterpret_cast<HDC>(w); SetTextColor(dc,self->colors.ink); SetBkColor(dc,self->colors.surface);
+                return reinterpret_cast<INT_PTR>(self->surfaceBrush);
+            }
+            if (message==WM_DRAWITEM) { self->draw_button(reinterpret_cast<DRAWITEMSTRUCT*>(l)); return TRUE; }
             if (message==WM_COMMAND) {
                 if (LOWORD(w)==IDC_LANGUAGE && HIWORD(w)==CBN_SELCHANGE) {
                     self->english=SendDlgItemMessageW(dialog,IDC_LANGUAGE,CB_GETCURSEL,0,0)==1;
@@ -403,30 +447,114 @@ public:
     }
     void paint_content(HDC dc) {
         RECT rc{}; GetClientRect(popup,&rc);
-        HBRUSH brush=CreateSolidBrush(RGB(250,251,253)); FillRect(dc,&rc,brush); DeleteObject(brush);
-        SetBkMode(dc,TRANSPARENT); SetTextColor(dc,ink); SelectObject(dc,titleFont);
-        RECT title{scale(16),scale(12),rc.right-scale(16),scale(38)}; DrawTextW(dc,L"Chojema CopyKeep",-1,&title,DT_LEFT|DT_SINGLELINE);
-        SelectObject(dc,smallFont); SetTextColor(dc,muted);
-        RECT subtitle{scale(16),scale(42),rc.right-scale(16),scale(63)}; auto sub=t(IDS_SUBTITLE); DrawTextW(dc,sub.c_str(),-1,&subtitle,DT_SINGLELINE|DT_END_ELLIPSIS);
-        RECT help{scale(16),rc.bottom-scale(64),rc.right-scale(16),rc.bottom-scale(44)}; auto hint=t(IDS_HELP); DrawTextW(dc,hint.c_str(),-1,&help,DT_SINGLELINE|DT_END_ELLIPSIS);
+        ui::fill(dc,rc,colors.background);
+        RECT outline=rc; ui::rounded(dc,outline,scale(12),colors.background,colors.line);
+        RECT mark{scale(18),scale(20),scale(48),scale(50)};
+        ui::rounded(dc,mark,scale(8),colors.selected,colors.selected,false);
+        RECT glyph{scale(23),scale(25),scale(43),scale(45)}; ui::symbol(dc,glyph,ui::Symbol::Clipboard,colors.highContrast?colors.onAccent:colors.accent);
+        SetBkMode(dc,TRANSPARENT); SetTextColor(dc,colors.ink); SelectObject(dc,titleFont);
+        RECT title{scale(60),scale(17),rc.right-scale(60),scale(39)}; DrawTextW(dc,L"Chojema CopyKeep",-1,&title,DT_LEFT|DT_SINGLELINE|DT_NOPREFIX);
+        SelectObject(dc,smallFont); SetTextColor(dc,colors.muted);
+        RECT subtitle{scale(60),scale(40),rc.right-scale(64),scale(59)};
+        auto sub=t(IDS_SUBTITLE)+L"  /  "+std::to_wstring(items.size()); DrawTextW(dc,sub.c_str(),-1,&subtitle,DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        RECT separator{scale(18),scale(69),rc.right-scale(18),scale(70)}; ui::fill(dc,separator,colors.line);
+        RECT footer{scale(18),rc.bottom-scale(85),rc.right-scale(18),rc.bottom-scale(84)}; ui::fill(dc,footer,colors.line);
+        auto hint=[&](int x,int width,const wchar_t* key,UINT label) {
+            RECT keyRect{scale(x),rc.bottom-scale(77),scale(x+width),rc.bottom-scale(55)};
+            ui::rounded(dc,keyRect,scale(5),colors.surface,colors.line);
+            SetTextColor(dc,colors.ink); DrawTextW(dc,key,-1,&keyRect,DT_CENTER|DT_VCENTER|DT_SINGLELINE);
+            RECT labelRect{keyRect.right+scale(7),keyRect.top,keyRect.right+scale(92),keyRect.bottom};
+            auto value=t(label); SetTextColor(dc,colors.muted); DrawTextW(dc,value.c_str(),-1,&labelRect,DT_VCENTER|DT_SINGLELINE|DT_NOPREFIX);
+        };
+        hint(18,42,L"Enter",IDS_PASTE_ACTION); hint(150,32,L"Esc",IDS_CLOSE);
+        if (previewExpanded) {
+            RECT bounds{}; GetWindowRect(list,&bounds); MapWindowPoints(nullptr,popup,reinterpret_cast<POINT*>(&bounds),2);
+            RECT panel{bounds.right+scale(12),bounds.top,rc.right-scale(12),bounds.bottom};
+            ui::rounded(dc,panel,scale(10),colors.surface,colors.line);
+            RECT caption{panel.left+scale(16),panel.top+scale(10),panel.right-scale(16),panel.top+scale(29)};
+            auto label=t(IDS_PREVIEW); SetTextColor(dc,colors.muted); DrawTextW(dc,label.c_str(),-1,&caption,DT_SINGLELINE|DT_VCENTER);
+        }
         if (previewBitmap) {
             RECT imageRect{}; GetWindowRect(preview,&imageRect); MapWindowPoints(nullptr,popup,reinterpret_cast<POINT*>(&imageRect),2);
             HDC source=CreateCompatibleDC(dc); auto old=SelectObject(source,previewBitmap); BITMAP info{}; GetObjectW(previewBitmap,sizeof(info),&info);
-            BitBlt(dc,imageRect.left+2,imageRect.top+2,info.bmWidth,info.bmHeight,source,0,0,SRCCOPY); SelectObject(source,old); DeleteDC(source);
+            int x=imageRect.left+(imageRect.right-imageRect.left-info.bmWidth)/2, y=imageRect.top+(imageRect.bottom-imageRect.top-info.bmHeight)/2;
+            BitBlt(dc,x,y,info.bmWidth,info.bmHeight,source,0,0,SRCCOPY); SelectObject(source,old); DeleteDC(source);
         }
     }
-    void paint() { PAINTSTRUCT ps{}; HDC dc=BeginPaint(popup,&ps); paint_content(dc); EndPaint(popup,&ps); }
+    void paint() {
+        PAINTSTRUCT ps{}; HDC dc=BeginPaint(popup,&ps); RECT rc{}; GetClientRect(popup,&rc);
+        HDC buffer=CreateCompatibleDC(dc); HBITMAP bitmap=CreateCompatibleBitmap(dc,std::max<LONG>(1,rc.right),std::max<LONG>(1,rc.bottom));
+        auto old=SelectObject(buffer,bitmap); paint_content(buffer); BitBlt(dc,0,0,rc.right,rc.bottom,buffer,0,0,SRCCOPY);
+        SelectObject(buffer,old); DeleteObject(bitmap); DeleteDC(buffer); EndPaint(popup,&ps);
+    }
+    void draw_button(DRAWITEMSTRUCT* draw) {
+        RECT rect=draw->rcItem; HDC dc=draw->hDC;
+        bool disabled=(draw->itemState&ODS_DISABLED)!=0, pressed=(draw->itemState&ODS_SELECTED)!=0;
+        bool focused=(draw->itemState&ODS_FOCUS)!=0, hovered=GetPropW(draw->hwndItem,L"CopyKeep.Hover")!=nullptr;
+        bool primary=draw->CtlID==IDOK, close=draw->CtlID==close_id;
+        COLORREF foreground=disabled?colors.disabled:primary?colors.onAccent:colors.ink;
+        COLORREF background=primary?(pressed?colors.accentPressed:hovered?colors.accentHover:colors.accent):pressed?colors.selected:hovered?colors.hover:colors.surface;
+        ui::fill(dc,rect,colors.background); InflateRect(&rect,-scale(1),-scale(1));
+        ui::rounded(dc,rect,scale(7),background,focused?colors.accent:colors.line,!close || hovered || focused);
+        SetBkMode(dc,TRANSPARENT); SetTextColor(dc,foreground); SelectObject(dc,font);
+        if (close) {
+            RECT glyph{rect.left+scale(7),rect.top+scale(7),rect.right-scale(7),rect.bottom-scale(7)};
+            ui::symbol(dc,glyph,ui::Symbol::Close,foreground);
+        } else {
+            wchar_t label[100]{}; GetWindowTextW(draw->hwndItem,label,100);
+            RECT labelRect=rect;
+            if (draw->CtlID==settings_id || draw->CtlID==delete_id || draw->CtlID==clear_id) {
+                RECT glyph{rect.left+scale(11),rect.top+scale(6),rect.left+scale(29),rect.top+scale(24)};
+                auto symbol=draw->CtlID==settings_id?ui::Symbol::Settings:draw->CtlID==delete_id?ui::Symbol::Trash:ui::Symbol::Clear;
+                ui::symbol(dc,glyph,symbol,foreground); labelRect.left+=scale(35); labelRect.right-=scale(8);
+                DrawTextW(dc,label,-1,&labelRect,DT_SINGLELINE|DT_VCENTER|DT_CENTER|DT_NOPREFIX);
+            } else DrawTextW(dc,label,-1,&labelRect,DT_SINGLELINE|DT_VCENTER|DT_CENTER|DT_NOPREFIX);
+        }
+        if (focused && colors.highContrast) { RECT focus=rect; InflateRect(&focus,-scale(3),-scale(3)); DrawFocusRect(dc,&focus); }
+    }
     void draw_item(DRAWITEMSTRUCT* draw) {
         if (draw->itemID==static_cast<UINT>(-1) || draw->itemID>=items.size()) return;
         const auto& item=items[draw->itemID]; bool chosen=(draw->itemState&ODS_SELECTED)!=0;
-        HBRUSH brush=CreateSolidBrush(chosen?RGB(226,237,254):RGB(255,255,255)); FillRect(draw->hDC,&draw->rcItem,brush); DeleteObject(brush);
-        SetBkMode(draw->hDC,TRANSPARENT); SetTextColor(draw->hDC,chosen?accent:muted); SelectObject(draw->hDC,smallFont);
-        RECT top=draw->rcItem; top.left+=scale(10); top.top+=scale(6); top.bottom=top.top+scale(18);
-        auto kind=item.kind?t(IDS_IMAGE)+L"  "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height):t(IDS_TEXT);
-        DrawTextW(draw->hDC,kind.c_str(),-1,&top,DT_SINGLELINE|DT_END_ELLIPSIS);
-        RECT label=draw->rcItem; label.left+=scale(10); label.right-=scale(10); label.top+=scale(28); label.bottom-=scale(5);
-        SelectObject(draw->hDC,font); SetTextColor(draw->hDC,ink);
-        auto summary=item.kind?t(IDS_PASTE_HINT):item.preview; DrawTextW(draw->hDC,summary.c_str(),-1,&label,DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        HDC dc=draw->hDC; ui::fill(dc,draw->rcItem,colors.surface);
+        RECT row=draw->rcItem; InflateRect(&row,-scale(3),-scale(1));
+        if (chosen || hoveredRow==static_cast<int>(draw->itemID)) ui::rounded(dc,row,scale(7),chosen?colors.selected:colors.hover,chosen?colors.accent:colors.hover,chosen && GetFocus()==list);
+        COLORREF foreground=chosen && colors.highContrast?colors.onAccent:colors.ink;
+        RECT glyph{row.left+scale(10),row.top+scale(8),row.left+scale(28),row.top+scale(26)};
+        ui::symbol(dc,glyph,item.kind?ui::Symbol::Picture:ui::Symbol::Document,chosen && !colors.highContrast?colors.accent:foreground);
+        RECT label=row; label.left+=scale(40); label.right-=scale(12);
+        SelectObject(dc,font); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,foreground);
+        auto summary=item.kind?t(IDS_IMAGE)+L"   "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height):item.preview;
+        DrawTextW(dc,summary.c_str(),-1,&label,DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
+    }
+    static LRESULT CALLBACK button_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR) {
+        if (message==BM_SETSTYLE) return DefSubclassProc(window,message,(w&~BS_TYPEMASK)|BS_OWNERDRAW,l);
+        if (message==WM_GETDLGCODE && GetDlgCtrlID(window)==IDOK) return DLGC_BUTTON|DLGC_DEFPUSHBUTTON;
+        if (message==WM_MOUSEMOVE && !GetPropW(window,L"CopyKeep.Hover")) {
+            SetPropW(window,L"CopyKeep.Hover",reinterpret_cast<HANDLE>(1));
+            TRACKMOUSEEVENT tracking{sizeof(tracking),TME_LEAVE,window,0}; TrackMouseEvent(&tracking); InvalidateRect(window,nullptr,FALSE);
+        }
+        if (message==WM_MOUSELEAVE || message==WM_NCDESTROY) { RemovePropW(window,L"CopyKeep.Hover"); InvalidateRect(window,nullptr,FALSE); }
+        return DefSubclassProc(window,message,w,l);
+    }
+    static LRESULT CALLBACK hotkey_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR ref) {
+        auto* self=reinterpret_cast<App*>(ref);
+        if (message==WM_PAINT || message==WM_PRINTCLIENT || message==WM_PRINT) {
+            PAINTSTRUCT paint{}; HDC dc=message==WM_PAINT?BeginPaint(window,&paint):reinterpret_cast<HDC>(w); RECT rc{}; GetClientRect(window,&rc);
+            ui::fill(dc,rc,self->colors.background); ui::rounded(dc,rc,self->scale(5),self->colors.surface,GetFocus()==window?self->colors.accent:self->colors.line);
+            WORD value=static_cast<WORD>(SendMessageW(window,HKM_GETHOTKEY,0,0)); BYTE mods=HIBYTE(value), key=LOBYTE(value);
+            std::wstring label;
+            if (key) {
+                if (mods&HOTKEYF_CONTROL) label+=L"Ctrl + "; if (mods&HOTKEYF_SHIFT) label+=L"Shift + "; if (mods&HOTKEYF_ALT) label+=L"Alt + ";
+                wchar_t name[64]{}; LONG scan=static_cast<LONG>(MapVirtualKeyW(key,MAPVK_VK_TO_VSC)<<16); if (mods&HOTKEYF_EXT) scan|=1<<24;
+                GetKeyNameTextW(scan,name,64); label+=name;
+            } else label=self->t(IDS_HOTKEY_EMPTY);
+            SelectObject(dc,self->font); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,key?self->colors.ink:self->colors.muted);
+            rc.left+=self->scale(9); rc.right-=self->scale(9); DrawTextW(dc,label.c_str(),-1,&rc,DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
+            if (message==WM_PAINT) EndPaint(window,&paint); return 0;
+        }
+        LRESULT result=DefSubclassProc(window,message,w,l);
+        if (message==WM_KEYDOWN || message==WM_KEYUP || message==WM_SETFOCUS || message==WM_KILLFOCUS || message==HKM_SETHOTKEY) InvalidateRect(window,nullptr,FALSE);
+        return result;
     }
     static LRESULT CALLBACK host_proc(HWND window,UINT message,WPARAM w,LPARAM l) {
         auto* self=reinterpret_cast<App*>(GetWindowLongPtrW(window,GWLP_USERDATA));
@@ -450,13 +578,27 @@ public:
         if (message==WM_NCCREATE) { self=static_cast<App*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams); SetWindowLongPtrW(window,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(self)); self->popup=window; }
         if (!self) return DefWindowProcW(window,message,w,l);
         try {
+            if (message==WM_NCCALCSIZE && w) return 0;
+            if (message==WM_NCHITTEST) {
+                POINT point{GET_X_LPARAM(l),GET_Y_LPARAM(l)}; ScreenToClient(window,&point); RECT rc{}; GetClientRect(window,&rc);
+                return point.y<self->scale(68) && point.x<rc.right-self->scale(60)?HTCAPTION:HTCLIENT;
+            }
+            if (message==WM_EXITSIZEMOVE) { RECT rc{}; GetWindowRect(window,&rc); self->popupAnchor={rc.left,rc.top}; self->popupAnchorValid=true; return 0; }
+            if (message==WM_THEMECHANGED || message==WM_SETTINGCHANGE) { self->theme(); return 0; }
+            if (message==WM_CTLCOLORLISTBOX || message==WM_CTLCOLOREDIT || message==WM_CTLCOLORSTATIC) {
+                HDC dc=reinterpret_cast<HDC>(w); SetTextColor(dc,self->colors.ink); SetBkColor(dc,self->colors.surface);
+                return reinterpret_cast<LRESULT>(self->surfaceBrush);
+            }
             if (message==WM_CREATE) { self->create_controls(); return 0; }
             if (message==WM_SIZE) { self->layout(); return 0; }
             if (message==WM_PAINT) { self->paint(); return 0; }
             if (message==WM_PRINTCLIENT) { self->paint_content(reinterpret_cast<HDC>(w)); return 0; }
             if (message==WM_ERASEBKGND) return 1;
-            if (message==WM_DRAWITEM) { self->draw_item(reinterpret_cast<DRAWITEMSTRUCT*>(l)); return TRUE; }
-            if (message==WM_MEASUREITEM) { reinterpret_cast<MEASUREITEMSTRUCT*>(l)->itemHeight=self->scale(57); return TRUE; }
+            if (message==WM_DRAWITEM) {
+                auto* draw=reinterpret_cast<DRAWITEMSTRUCT*>(l);
+                if (draw->CtlType==ODT_BUTTON) self->draw_button(draw); else self->draw_item(draw); return TRUE;
+            }
+            if (message==WM_MEASUREITEM) { reinterpret_cast<MEASUREITEMSTRUCT*>(l)->itemHeight=self->scale(36); return TRUE; }
             if (message==WM_CLOSE) { ShowWindow(window,SW_HIDE); return 0; }
             if (message==WM_ACTIVATE && LOWORD(w)==WA_INACTIVE && !self->settingsOpen && !self->testing) { ShowWindow(window,SW_HIDE); return 0; }
             if (message==WM_DPICHANGED) { auto r=reinterpret_cast<RECT*>(l); SetWindowPos(window,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE); self->fonts(); self->layout(); self->update_preview(); return 0; }
@@ -478,11 +620,24 @@ public:
         if ((message==WM_PAINT || message==WM_PRINTCLIENT) && self->items.empty()) {
             LRESULT result=DefSubclassProc(window,message,w,l);
             HDC dc=message==WM_PAINT?GetDC(window):reinterpret_cast<HDC>(w);
-            int saved=SaveDC(dc); RECT bounds{}; GetClientRect(window,&bounds); InflateRect(&bounds,-self->scale(12),-self->scale(12));
-            SelectObject(dc,self->font); SetTextColor(dc,muted); SetBkMode(dc,TRANSPARENT);
-            auto hint=self->t(IDS_EMPTY); DrawTextW(dc,hint.c_str(),-1,&bounds,DT_WORDBREAK|DT_NOPREFIX);
+            int saved=SaveDC(dc); RECT bounds{}; GetClientRect(window,&bounds); ui::fill(dc,bounds,self->colors.surface);
+            int middle=(bounds.right-bounds.left)/2, y=std::max<int>(self->scale(12),bounds.bottom/2-self->scale(58));
+            RECT badge{middle-self->scale(25),y,middle+self->scale(25),y+self->scale(50)};
+            ui::rounded(dc,badge,self->scale(12),self->colors.hover,self->colors.hover,false);
+            RECT glyph{badge.left+self->scale(12),badge.top+self->scale(12),badge.right-self->scale(12),badge.bottom-self->scale(12)};
+            ui::symbol(dc,glyph,ui::Symbol::Clipboard,self->colors.muted);
+            bounds.top=badge.bottom+self->scale(16); bounds.left+=self->scale(16); bounds.right-=self->scale(16);
+            SelectObject(dc,self->font); SetTextColor(dc,self->colors.muted); SetBkMode(dc,TRANSPARENT);
+            auto hint=self->t(IDS_EMPTY); DrawTextW(dc,hint.c_str(),-1,&bounds,DT_WORDBREAK|DT_CENTER|DT_NOPREFIX);
             RestoreDC(dc,saved); if (message==WM_PAINT) ReleaseDC(window,dc); return result;
         }
+        if (message==WM_MOUSEMOVE) {
+            DWORD hit=static_cast<DWORD>(SendMessageW(window,LB_ITEMFROMPOINT,0,l));
+            int hovered=HIWORD(hit)?-1:static_cast<int>(LOWORD(hit));
+            if (hovered!=self->hoveredRow) { self->hoveredRow=hovered; InvalidateRect(window,nullptr,FALSE); }
+            TRACKMOUSEEVENT tracking{sizeof(tracking),TME_LEAVE,window,0}; TrackMouseEvent(&tracking);
+        }
+        if (message==WM_MOUSELEAVE) { self->hoveredRow=-1; InvalidateRect(window,nullptr,FALSE); }
         if (message==WM_KEYDOWN) {
             if (w==VK_RETURN) { PostMessageW(self->popup,paste_message,0,0); return 0; }
             if (w==VK_ESCAPE) { ShowWindow(self->popup,SW_HIDE); return 0; }
@@ -516,7 +671,7 @@ int self_test(const std::filesystem::path& root) {
         check(header->bV5Width==320 && header->bV5Height==-180 && dib.size()==sizeof(BITMAPV5HEADER)+320*180*4,"Image paste format");
         auto imageId=store.put(1,image.png,L"",image.width,image.height); check(store.payload(imageId)==image.png,"Image persistence");
         HBITMAP preview=thumbnail(image.png,120,80); check(preview!=nullptr,"Image preview"); if (preview) DeleteObject(preview);
-        for (UINT id=IDS_APP;id<=IDS_NO_TARGET;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
+        for (UINT id=IDS_APP;id<=IDS_HOTKEY_EMPTY;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
     }
     {
         Store store(folder); check(store.setting("language","ko")=="en" && store.list().size()==3,"Restart persistence");
@@ -556,6 +711,19 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
         SendMessageW(app.popup,WM_COMMAND,MAKEWPARAM(list_id,LBN_SELCHANGE),reinterpret_cast<LPARAM>(app.list));
     };
     check(app.selected()==0 && app.items.size()==4 && app.items[0].id==shortId,"Popup default selection");
+    check(SendMessageW(app.list,LB_GETITEMHEIGHT,0,0)==app.scale(36),"Compact single-line row height");
+    check(!(GetWindowLongPtrW(app.list,GWL_EXSTYLE)&WS_EX_CLIENTEDGE) && !(GetWindowLongPtrW(app.preview,GWL_EXSTYLE)&WS_EX_CLIENTEDGE),"Flat list and preview controls");
+    HDC fontDC=GetDC(app.popup); auto oldFont=SelectObject(fontDC,app.titleFont); wchar_t actualFace[80]{}; GetTextFaceW(fontDC,80,actualFace);
+    check(std::wstring(actualFace)==L"Segoe UI","System UI title font"); SelectObject(fontDC,oldFont); ReleaseDC(app.popup,fontDC);
+    wchar_t accessibleRow[256]{}; SendMessageW(app.list,LB_GETTEXT,0,reinterpret_cast<LPARAM>(accessibleRow));
+    check(std::wstring(accessibleRow).find(app.t(IDS_TEXT))!=std::wstring::npos,"Text type retained in accessible list name");
+    auto closeBounds=bounds(app.buttons[3]), windowBounds=bounds(app.popup);
+    check(closeBounds.top<windowBounds.top+app.scale(60),"Close control stays in header");
+    SendMessageW(app.buttons[0],WM_MOUSEMOVE,0,MAKELPARAM(4,4));
+    check(GetPropW(app.buttons[0],L"CopyKeep.Hover")!=nullptr,"Button hover state");
+    SendMessageW(app.buttons[0],WM_MOUSELEAVE,0,0);
+    check(GetPropW(app.buttons[0],L"CopyKeep.Hover")==nullptr,"Button hover clears");
+    app.theme(true); check(app.colors.highContrast && app.colors.ink==GetSysColor(COLOR_WINDOWTEXT),"High contrast uses system colors"); app.theme();
     check(!app.previewExpanded && !IsWindowVisible(app.preview) && !app.previewBitmap,"Short text uses list only");
     auto compact=bounds(app.popup), compactList=bounds(app.list);
     check(!app.text_needs_preview(L"WW") && app.text_needs_preview(std::wstring(80,L'W')),"Preview follows rendered width");
@@ -592,16 +760,33 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     check(EqualRect(&edgeCompact,&edgeAgain)!=FALSE,"Repeated expansion does not drift");
     app.popupAnchor=originalAnchor;
     check(app.store.list().front().id==shortId && app.store.payload(longId)==originalLongPayload,"Preview does not modify history order or payload");
-    if (scenario==L"empty") { app.store.clear(); app.refresh(); check(!app.previewExpanded && !IsWindowVisible(app.preview) && !app.previewBitmap && !IsWindowEnabled(app.buttons[1]),"Empty history stays compact"); }
+    HWND settingsWindow=nullptr;
+    if (scenario==L"settings") {
+        settingsWindow=CreateDialogParamW(instance,MAKEINTRESOURCEW(IDD_SETTINGS),app.popup,App::dialog_proc,reinterpret_cast<LPARAM>(&app));
+        check(settingsWindow!=nullptr,"Settings window created");
+        check(LOWORD(SendMessageW(settingsWindow,DM_GETDEFID,0,0))==IDOK,"Settings retains default Save action");
+        check((GetWindowLongPtrW(GetDlgItem(settingsWindow,IDOK),GWL_STYLE)&BS_TYPEMASK)==BS_OWNERDRAW,"Settings default action retains modern rendering");
+        wchar_t save[80]{}; GetWindowTextW(GetDlgItem(settingsWindow,IDOK),save,80); check(save==app.t(IDS_SAVE),"Settings labels localized");
+        check(GetDlgItem(settingsWindow,IDC_HOTKEY)!=nullptr && SendDlgItemMessageW(settingsWindow,IDC_HOTKEY,HKM_GETHOTKEY,0,0)==MAKEWORD(app.key,HOTKEYF_CONTROL|HOTKEYF_SHIFT),"Settings shortcut value retained");
+        check(IsDlgButtonChecked(settingsWindow,IDC_STARTUP)==BST_UNCHECKED,"Synthetic settings do not read real startup state");
+        ShowWindow(settingsWindow,SW_SHOW); UpdateWindow(settingsWindow);
+    }
+    else if (scenario==L"contrast") { select(1); app.theme(true); }
+    else if (scenario==L"many") {
+        for (int i=1;i<=12;++i) add((english?L"Saved note ":L"저장된 메모 ")+std::to_wstring(i));
+        app.refresh(); check(app.items.size()==16 && SendMessageW(app.list,LB_GETITEMHEIGHT,0,0)==app.scale(36),"Dense history retains compact rows");
+    }
+    else if (scenario==L"empty") { app.store.clear(); app.refresh(); check(!app.previewExpanded && !IsWindowVisible(app.preview) && !app.previewBitmap && !IsWindowEnabled(app.buttons[1]),"Empty history stays compact"); }
     else if (scenario==L"short") select(0);
     else if (scenario==L"long") select(1);
     else if (scenario==L"multiline") select(2);
     else { require(scenario==L"image","Unknown preview scenario"); select(3); }
     UpdateWindow(app.popup);
-    RECT rc{}; GetClientRect(app.popup,&rc); HDC screen=GetDC(nullptr), dc=CreateCompatibleDC(screen);
+    HWND capture=settingsWindow?settingsWindow:app.popup;
+    RECT rc{}; GetClientRect(capture,&rc); HDC screen=GetDC(nullptr), dc=CreateCompatibleDC(screen);
     HBITMAP bitmap=CreateCompatibleBitmap(screen,rc.right,rc.bottom); auto old=SelectObject(dc,bitmap);
-    app.paint_content(dc);
-    EnumChildWindows(app.popup,[](HWND child,LPARAM context)->BOOL {
+    if (settingsWindow) SendMessageW(settingsWindow,WM_PRINTCLIENT,reinterpret_cast<WPARAM>(dc),PRF_CLIENT); else app.paint_content(dc);
+    EnumChildWindows(capture,[](HWND child,LPARAM context)->BOOL {
         if (!IsWindowVisible(child)) return TRUE;
         HDC canvas=reinterpret_cast<HDC>(context); RECT bounds{}; GetWindowRect(child,&bounds);
         MapWindowPoints(nullptr,GetParent(child),reinterpret_cast<POINT*>(&bounds),2);
@@ -612,6 +797,7 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     },reinterpret_cast<LPARAM>(dc));
     SelectObject(dc,old);
     bool saved=save_bitmap(bitmap,output); DeleteObject(bitmap); DeleteDC(dc); ReleaseDC(nullptr,screen);
+    if (settingsWindow) DestroyWindow(settingsWindow);
     DestroyWindow(app.host); require(saved,"UI capture failed");
     std::cout<<"PASS: "<<checks<<" popup selection, preview, focus, and work-area checks\n"; return 0;
 }

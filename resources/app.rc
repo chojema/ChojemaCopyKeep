@@ -4,28 +4,28 @@
 #include "ids.h"
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
-IDD_SETTINGS DIALOGEX 0, 0, 316, 216
+IDD_SETTINGS DIALOGEX 0, 0, 320, 220
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Chojema CopyKeep"
-FONT 9, "Segoe UI"
+FONT 10, "Segoe UI"
 BEGIN
-    LTEXT "", IDC_LANGUAGE_LABEL, 14, 15, 85, 14
-    COMBOBOX IDC_LANGUAGE, 108, 12, 190, 70, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
-    CONTROL "", IDC_PROMOTE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 46, 285, 18
-    CONTROL "", IDC_STARTUP, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 14, 72, 285, 18
-    LTEXT "", IDC_LIMIT_LABEL, 14, 105, 90, 14
-    EDITTEXT IDC_LIMIT, 108, 101, 70, 20, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT "", IDC_HOTKEY_LABEL, 14, 140, 90, 14
-    CONTROL "", IDC_HOTKEY, "msctls_hotkey32", WS_BORDER | WS_TABSTOP, 108, 135, 190, 22
-    DEFPUSHBUTTON "", IDOK, 140, 181, 76, 23
-    PUSHBUTTON "", IDCANCEL, 222, 181, 76, 23
+    LTEXT "", IDC_LANGUAGE_LABEL, 20, 23, 94, 14
+    COMBOBOX IDC_LANGUAGE, 126, 20, 174, 80, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    CONTROL "", IDC_PROMOTE, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 20, 55, 280, 16
+    CONTROL "", IDC_STARTUP, "Button", BS_AUTOCHECKBOX | WS_TABSTOP, 20, 83, 280, 16
+    LTEXT "", IDC_LIMIT_LABEL, 20, 120, 104, 14
+    EDITTEXT IDC_LIMIT, 126, 116, 70, 17, ES_NUMBER | ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "", IDC_HOTKEY_LABEL, 20, 153, 104, 14
+    CONTROL "", IDC_HOTKEY, "msctls_hotkey32", WS_TABSTOP, 126, 149, 174, 18
+    CONTROL "", IDOK, "Button", BS_OWNERDRAW | WS_TABSTOP, 142, 188, 76, 22
+    CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 224, 188, 76, 22
 END
 
 LANGUAGE LANG_KOREAN, SUBLANG_KOREAN
 STRINGTABLE
 BEGIN
     IDS_APP "Chojema CopyKeep"
-    IDS_SUBTITLE "복사한 내용을 골라 바로 붙여넣으세요."
+    IDS_SUBTITLE "클립보드 기록"
     IDS_EMPTY "아직 기록이 없습니다.\n텍스트나 이미지를 복사하면 여기에 표시됩니다."
     IDS_SETTINGS "설정"
     IDS_DELETE "삭제"
@@ -51,19 +51,21 @@ BEGIN
     IDS_PAUSE "수집 일시 중지"
     IDS_RESUME "수집 다시 시작"
     IDS_ABOUT "앱 정보"
-    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.1.1\n텍스트와 이미지의 로컬 복사 기록"
+    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.1.2\n텍스트와 이미지의 로컬 복사 기록"
     IDS_CAPTURE_ERROR "복사 내용을 저장하지 못했습니다. 항목은 최대 32 MiB, 이미지는 최대 16,777,216픽셀까지 지원합니다."
     IDS_DATABASE_ERROR "기록 저장소를 열지 못했습니다. 저장 위치의 접근 권한을 확인해 주세요."
     IDS_PASTE_HINT "원래 입력 위치로 붙여넣습니다."
     IDS_BAD_SETTINGS "보관 개수는 10~1000으로, 단축키는 Ctrl 또는 Alt를 포함해 지정해 주세요."
     IDS_NO_TARGET "붙여넣을 앱에서 단축키를 누르세요."
+    IDS_PASTE_ACTION "붙여넣기"
+    IDS_HOTKEY_EMPTY "키 조합을 누르세요"
 END
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 STRINGTABLE
 BEGIN
     IDS_APP "Chojema CopyKeep"
-    IDS_SUBTITLE "Choose something you copied and paste it."
+    IDS_SUBTITLE "Clipboard history"
     IDS_EMPTY "No history yet.\nCopy text or an image to get started."
     IDS_SETTINGS "Settings"
     IDS_DELETE "Delete"
@@ -89,18 +91,20 @@ BEGIN
     IDS_PAUSE "Pause collection"
     IDS_RESUME "Resume collection"
     IDS_ABOUT "About"
-    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.1.1\nLocal clipboard history for text and images"
+    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.1.2\nLocal clipboard history for text and images"
     IDS_CAPTURE_ERROR "The item could not be saved. Items are limited to 32 MiB and images to 16,777,216 pixels."
     IDS_DATABASE_ERROR "The history database could not be opened. Check access to the storage location."
     IDS_PASTE_HINT "Paste into the original insertion point."
     IDS_BAD_SETTINGS "Use a history limit from 10 to 1000 and a shortcut containing Ctrl or Alt."
     IDS_NO_TARGET "Use the shortcut while a destination app is active."
+    IDS_PASTE_ACTION "Paste"
+    IDS_HOTKEY_EMPTY "Press a key combination"
 END
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 1 VERSIONINFO
-FILEVERSION 0,1,1,0
-PRODUCTVERSION 0,1,1,0
+FILEVERSION 0,1,2,0
+PRODUCTVERSION 0,1,2,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -113,12 +117,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Park Chulwoo\0"
             VALUE "FileDescription", "Chojema CopyKeep\0"
-            VALUE "FileVersion", "0.1.1\0"
+            VALUE "FileVersion", "0.1.2\0"
             VALUE "InternalName", "ChojemaCopyKeep\0"
             VALUE "LegalCopyright", "Copyright (c) 2026 Park Chulwoo\0"
             VALUE "OriginalFilename", "ChojemaCopyKeep.exe\0"
             VALUE "ProductName", "Chojema CopyKeep\0"
-            VALUE "ProductVersion", "0.1.1\0"
+            VALUE "ProductVersion", "0.1.2\0"
         END
     END
     BLOCK "VarFileInfo"

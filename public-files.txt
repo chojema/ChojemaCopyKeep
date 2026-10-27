@@ -9,6 +9,7 @@ src/store.cpp
 src/store.h
 src/image.cpp
 src/image.h
+src/ui.h
 resources/ids.h
 resources/app.rc
 resources/app.manifest

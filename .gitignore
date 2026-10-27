@@ -12,6 +12,7 @@
 !/src/store.h
 !/src/image.cpp
 !/src/image.h
+!/src/ui.h
 !/resources/
 /resources/*
 !/resources/ids.h

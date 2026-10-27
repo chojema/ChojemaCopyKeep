@@ -39,7 +39,7 @@ build/windows/ChojemaCopyKeep.exe --smoke-test ko .local/preview-ko.png
 build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 ```
 
-Append `short`, `long`, `multiline`, `image`, or `empty` to render that state. The default is `image`.
+Append `short`, `long`, `multiline`, `image`, `empty`, `many`, `settings`, or `contrast` to render that state. The default is `image`. The `contrast` case uses system high-contrast colors in the synthetic window without changing operating system settings. Settings checks are included in the standard test run.
 
 Use `--data-dir` during normal execution to select a separate development storage folder. It can contain real copied content and must remain private.
 
