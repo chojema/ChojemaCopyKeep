@@ -48,3 +48,27 @@ build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 실행 파일과 두 언어 안내를 함께 배포합니다. 데이터베이스, 개인 설정, 로그, 내부 작업 기록과 빌드 중간 파일을 포함하지 않습니다. 자동 업데이트와 서명된 설치 프로그램은 제공하지 않습니다.
 
 공개 대상 파일은 `public-files.txt`와 `.gitignore`로 관리합니다. 목록을 변경할 때는 공개 파일 검사도 함께 실행합니다.
+
+## macOS
+
+macOS 13 이상, Xcode Command Line Tools의 Swift 6.0 이상과 Python 3.11 이상을 사용합니다. Swift Package Manager와 AppKit, Carbon 단축키, 운영체제 SQLite를 사용하며 외부 패키지를 다운로드하지 않습니다.
+
+```bash
+bash tools/build-macos.sh test
+bash tools/build-macos.sh universal
+python3 tools/public_audit.py
+bash tools/package-macos.sh
+```
+
+`universal`은 arm64와 x86_64 Release 실행 파일을 합칩니다. `native`는 현재 Mac 아키텍처만 빌드합니다. 결과는 `build/macos/Chojema CopyKeep.app`입니다. `bash script/build_and_run.sh`로 현재 아키텍처 빌드와 실행을 함께 할 수 있습니다. `--verify`, `--debug`, `--logs` 옵션을 지원합니다. 실제 실행은 앱 실행 이후의 클립보드를 수집합니다.
+
+검사는 임시 데이터베이스와 이름 있는 시험용 페이스트보드만 사용합니다. 저장 및 복원, 중복, 순서, 삭제, 보관 한도, 언어 키, 단축키 검증, 화면 영역 배치, PNG 변환과 수집 제외를 검사합니다. 화면 확인은 실제 클립보드와 로그인 항목, 손쉬운 사용 권한을 변경하지 않습니다.
+
+```bash
+open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test ko /tmp/copykeep-ko.png hover
+open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copykeep-en.png settings
+```
+
+화면 시나리오는 `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`입니다. PNG와 같은 이름의 JSON에 선택 및 미리보기 상태를 저장합니다. 일반 실행의 개발용 저장 위치는 `--data-dir`로 지정합니다.
+
+`tools/package-macos.sh`는 Universal 앱과 두 언어 안내만 ZIP에 넣고 `SHA256SUMS-macos.txt`를 생성합니다. 기본 빌드는 임시 서명(ad hoc)만 적용하며 Apple 공증과 Developer ID 서명은 포함하지 않습니다. Windows 릴리스와 태그는 보존하고 macOS 소스는 `v0.1.3-macos` 태그로 구분합니다.

@@ -1,0 +1,27 @@
+name: macOS
+on:
+  push:
+    branches: [main]
+    paths: ['macos/**', 'tools/*macos.sh', 'script/build_and_run.sh', '.github/workflows/macos.yml']
+  pull_request:
+    paths: ['macos/**', 'tools/*macos.sh', 'script/build_and_run.sh', '.github/workflows/macos.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: bash tools/build-macos.sh test
+      - name: Build Universal app
+        run: bash tools/build-macos.sh universal
+      - name: Package
+        run: bash tools/package-macos.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChojemaCopyKeep-macos-universal-0.1.3
+          path: |
+            dist/macos-v0.1.3/*.zip
+            dist/macos-v0.1.3/SHA256SUMS-macos.txt

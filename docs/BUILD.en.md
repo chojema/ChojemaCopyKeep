@@ -48,3 +48,26 @@ Use `--data-dir` during normal execution to select a separate development storag
 Distribute the executable with both language guides. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and a signed installer are not provided.
 
 Public files are managed through `public-files.txt` and `.gitignore`. Run the public-file audit whenever the list changes.
+## macOS build
+
+Use macOS 13 or later, Swift 6.0 or later from Xcode Command Line Tools, and Python 3.11 or later. The Swift package uses AppKit, Carbon hotkeys, and system SQLite without downloading external packages.
+
+```bash
+bash tools/build-macos.sh test
+bash tools/build-macos.sh universal
+python3 tools/public_audit.py
+bash tools/package-macos.sh
+```
+
+`universal` combines arm64 and x86_64 Release executables. `native` builds only the current Mac architecture. Output: `build/macos/Chojema CopyKeep.app`. Run `bash script/build_and_run.sh` to build and launch the native app; optional flags include `--verify`, `--debug`, and `--logs`. Normal launch collects clipboard changes made after startup.
+
+Tests use temporary databases and a named test pasteboard. They cover persistence, deduplication, ordering, deletion, limits, localization keys, shortcut validation, screen bounds, PNG conversion, and collection exclusions. Screen rendering does not change the general clipboard, login items, or Accessibility permission.
+
+```bash
+open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test ko /tmp/copykeep-ko.png hover
+open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copykeep-en.png settings
+```
+
+Scenarios: `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`. A JSON file alongside each PNG records selection and preview state. Normal launches accept `--data-dir` for an alternate development data directory.
+
+`tools/package-macos.sh` packages the Universal app and bilingual guides, and creates `SHA256SUMS-macos.txt`. Default builds use ad hoc signing, with no Developer ID signature or Apple notarization. Existing Windows releases and tags are preserved. macOS source uses the `v0.1.3-macos` tag.

@@ -2,11 +2,13 @@
 
 [English](README.en.md) | [다운로드](https://github.com/chojema/ChojemaCopyKeep/releases/latest)
 
-텍스트와 이미지의 복사 기록을 저장하고, 단축키로 불러와 붙여넣는 Windows용 클립보드 관리 앱입니다.
+텍스트와 이미지의 복사 기록을 저장하고, 단축키로 불러와 붙여넣는 Windows 및 macOS용 클립보드 관리 앱입니다.
 
 ## 다운로드 및 실행
 
 Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/latest)에서 Windows x64 ZIP을 다운로드한 뒤 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 실행 상태는 알림 영역 아이콘으로 확인할 수 있으며 관리자 권한은 필요하지 않습니다.
+
+macOS 13 이상에서는 [macOS 0.1.3 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.3-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
 
 ## 사용 방법
 
@@ -25,10 +27,13 @@ Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리
 
 알림 영역 아이콘을 마우스 오른쪽 버튼으로 클릭하면 설정, 수집 일시 중지, 종료 메뉴를 사용할 수 있습니다.
 
+macOS에서도 기본 호출 단축키는 `Control + Shift + Z`입니다. 메뉴 막대 아이콘을 클릭해 설정, 수집 일시 중지와 종료 메뉴를 엽니다. 원래 앱에 붙여넣으려면 시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 Chojema CopyKeep을 허용해야 합니다. 권한이 없으면 앱이 안내하며 붙여넣기 입력을 보내지 않습니다.
+
 ## 설정 및 기록 관리
 
 - 기본 언어는 한국어입니다. 영어로 전환하면 즉시 반영되며 설정을 저장하면 다음 실행에도 유지됩니다.
 - 단축키는 Ctrl 또는 Alt를 포함한 조합으로 변경할 수 있습니다. 기본값은 `Ctrl + Shift + Z`입니다.
+- macOS에서는 Control, Option 또는 Command와 문자·숫자 키를 조합하고 Shift를 추가할 수 있습니다. 단축키 문자는 미국식 키보드의 물리 키 위치를 기준으로 합니다.
 - 사용한 항목을 맨 위로 이동하는 옵션은 기본으로 켜져 있습니다.
 - 로그인 자동 실행은 기본으로 꺼져 있으며 설정에서 선택합니다.
 - 보관 개수는 기본 200개이며 10~1000개로 조정합니다. 중복 내용은 하나로 합쳐 최근 순서로 이동합니다.
@@ -40,15 +45,18 @@ Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리
 
 기록과 설정은 `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`에 저장됩니다. 클라우드 동기화, 계정 로그인, 원격 전송, 사용량 수집 기능은 없습니다. 데이터베이스에 앱 자체 암호화는 적용되지 않습니다.
 
+macOS의 저장 위치는 `~/Library/Application Support/ChojemaCopyKeep/history.db`입니다. 두 운영체제의 기록은 독립적으로 보관됩니다.
+
 민감한 복사 내용도 저장될 수 있습니다. 수집 제외 범위와 일시 중지, 삭제 기능은 [개인정보 안내](docs/PRIVACY.ko.md)에 설명되어 있습니다.
 
 ## 지원 범위 및 제한
 
 - 텍스트는 일반 텍스트로 저장합니다. HTML, RTF, 파일 복사, 여러 항목을 묶은 클립보드 형식은 지원하지 않습니다.
-- 이미지는 PNG와 Windows 비트맵 형식을 지원합니다. 붙여넣을 앱도 이미지 입력을 지원해야 합니다.
+- 이미지는 Windows에서 PNG와 비트맵, macOS에서 PNG와 TIFF 형식을 수집합니다. 붙여넣을 앱도 이미지 입력을 지원해야 합니다.
 - 붙여넣기는 원래 앱에 `Ctrl + V` 입력을 전송하는 방식입니다. 대상 앱의 입력 제한에 따라 동작하지 않을 수 있으며, 관리자 권한 앱과 보안 입력 화면에서는 제한될 수 있습니다.
 - 앱별 붙여넣기 호환성과 장시간 실행 동작은 추가 검증이 필요합니다.
-- macOS는 현재 지원하지 않습니다.
+- macOS는 원래 앱으로 전환한 뒤 `Command + V` 입력을 전송합니다. 보안 입력이나 대상 앱의 제한에 따라 동작하지 않을 수 있으며 입력 전송이 내용 수용을 보장하지는 않습니다.
+- macOS 0.1.3은 Apple Silicon에서 합성 데이터 검사와 화면 렌더링을 검증했습니다. Intel에서는 빌드와 실행 파일 구성을 확인했으며 실제 Intel 하드웨어, 외부 앱별 붙여넣기와 로그인 후 자동 실행은 미검증입니다.
 
 ## 소스 빌드
 
@@ -60,9 +68,19 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/build.ps1 -Test
 
 빌드 결과는 `build/windows/ChojemaCopyKeep.exe`에 생성됩니다.
 
+macOS에서는 Xcode Command Line Tools의 Swift 6.0 이상을 사용합니다. 외부 패키지는 필요하지 않습니다.
+
+```bash
+bash tools/build-macos.sh test
+bash tools/build-macos.sh universal
+bash tools/package-macos.sh
+```
+
+앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.1.3/`에 생성됩니다. macOS 0.1.3 소스는 `v0.1.3-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
+
 ## 프로젝트 정보
 
 - 개발 및 유지관리: Park Chulwoo
 - 라이선스: 미지정
 
-Windows와 SQLite 관련 구성 요소의 권리는 각 권리자에게 있습니다.
+운영체제와 SQLite 관련 구성 요소의 권리는 각 권리자에게 있습니다.
