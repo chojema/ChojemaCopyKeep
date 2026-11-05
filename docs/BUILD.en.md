@@ -70,4 +70,4 @@ open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copyke
 
 Scenarios: `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`. A JSON file alongside each PNG records selection and preview state. Normal launches accept `--data-dir` for an alternate development data directory.
 
-`tools/package-macos.sh` packages the Universal app and bilingual guides, and creates `SHA256SUMS-macos.txt`. Default builds use ad hoc signing, with no Developer ID signature or Apple notarization. Existing Windows releases and tags are preserved. macOS source uses the `v0.1.3-macos` tag.
+`tools/package-macos.sh` packages the Universal app and bilingual guides, and creates `SHA256SUMS-macos.txt`. Default builds use ad hoc signing, with no Developer ID signature or Apple notarization. Existing Windows releases and tags are preserved. macOS source uses the `v0.1.4-macos` tag.

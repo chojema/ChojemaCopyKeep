@@ -6,8 +6,8 @@
     <key>CFBundleExecutable</key><string>ChojemaCopyKeep</string>
     <key>CFBundleIdentifier</key><string>com.chojema.CopyKeep</string>
     <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1.3</string>
-    <key>CFBundleVersion</key><string>13</string>
+    <key>CFBundleShortVersionString</key><string>0.1.4</string>
+    <key>CFBundleVersion</key><string>14</string>
     <key>CFBundleDevelopmentRegion</key><string>ko</string>
     <key>CFBundleLocalizations</key><array><string>ko</string><string>en</string></array>
     <key>LSMinimumSystemVersion</key><string>13.0</string>

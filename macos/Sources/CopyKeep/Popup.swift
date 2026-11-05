@@ -1,8 +1,41 @@
 import AppKit
 
 enum Palette {
-    static var background: NSColor { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .windowBackgroundColor : NSColor(srgbRed: 0.957, green: 0.969, blue: 0.969, alpha: 1) }
-    static var accent: NSColor { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .controlAccentColor : NSColor(srgbRed: 0.09, green: 0.42, blue: 0.39, alpha: 1) }
+    static var background: NSColor { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .windowBackgroundColor : adaptive(light: (0.957, 0.969, 0.969), dark: (0.114, 0.129, 0.129)) }
+    static var accent: NSColor { NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .controlAccentColor : adaptive(light: (0.09, 0.42, 0.39), dark: (0.36, 0.76, 0.71)) }
+
+    private static func adaptive(light: (CGFloat, CGFloat, CGFloat), dark: (CGFloat, CGFloat, CGFloat)) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let value = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(srgbRed: value.0, green: value.1, blue: value.2, alpha: 1)
+        }
+    }
+}
+
+/// Layer-backed surface whose colors follow the effective appearance (light or dark).
+final class ThemedView: NSView {
+    private let fill: () -> NSColor
+    private let border: NSColor?
+    private let radius: CGFloat
+
+    init(fill: @escaping () -> NSColor, border: NSColor? = nil, radius: CGFloat = 0) {
+        self.fill = fill
+        self.border = border
+        self.radius = radius
+        super.init(frame: .zero)
+        wantsLayer = true
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.backgroundColor = fill().cgColor
+        layer?.cornerRadius = radius
+        layer?.borderWidth = border == nil ? 0 : 1
+        layer?.borderColor = border?.cgColor
+    }
 }
 
 final class HistoryRow: NSTableRowView {
@@ -57,7 +90,7 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private let count = NSTextField(labelWithString: "")
     private let hint = NSTextField(labelWithString: "")
     private let empty = NSTextField(wrappingLabelWithString: "")
-    private let previewBox = NSView()
+    private let previewBox = ThemedView(fill: { .controlBackgroundColor }, border: .separatorColor, radius: 10)
     private let previewTitle = NSTextField(labelWithString: "")
     private let previewScroll = NSScrollView()
     private let previewText = NSTextView()
@@ -87,9 +120,8 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         panel.delegate = self
         panel.backgroundColor = Palette.background
         panel.hasShadow = true
-        let root = panel.contentView!
-        root.wantsLayer = true
-        root.layer?.backgroundColor = Palette.background.cgColor
+        let root = ThemedView(fill: { Palette.background })
+        panel.contentView = root
         title.font = .systemFont(ofSize: 17, weight: .semibold)
         title.textColor = .labelColor
         count.font = .systemFont(ofSize: 12)
@@ -127,11 +159,6 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         addButton("clear", action: #selector(clear), frame: NSRect(x: 228, y: 13, width: 110, height: 30))
         addButton("close", action: #selector(close), frame: NSRect(x: 371, y: 365, width: 34, height: 28))
         previewBox.frame = NSRect(x: 430, y: 14, width: 356, height: 382)
-        previewBox.wantsLayer = true
-        previewBox.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
-        previewBox.layer?.cornerRadius = 10
-        previewBox.layer?.borderWidth = 1
-        previewBox.layer?.borderColor = NSColor.separatorColor.cgColor
         [previewTitle, previewScroll, previewImage].forEach(previewBox.addSubview)
         previewTitle.frame = NSRect(x: 14, y: 346, width: 328, height: 22)
         previewTitle.font = .systemFont(ofSize: 13, weight: .semibold)

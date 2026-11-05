@@ -71,4 +71,4 @@ open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copyke
 
 화면 시나리오는 `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`입니다. PNG와 같은 이름의 JSON에 선택 및 미리보기 상태를 저장합니다. 일반 실행의 개발용 저장 위치는 `--data-dir`로 지정합니다.
 
-`tools/package-macos.sh`는 Universal 앱과 두 언어 안내만 ZIP에 넣고 `SHA256SUMS-macos.txt`를 생성합니다. 기본 빌드는 임시 서명(ad hoc)만 적용하며 Apple 공증과 Developer ID 서명은 포함하지 않습니다. Windows 릴리스와 태그는 보존하고 macOS 소스는 `v0.1.3-macos` 태그로 구분합니다.
+`tools/package-macos.sh`는 Universal 앱과 두 언어 안내만 ZIP에 넣고 `SHA256SUMS-macos.txt`를 생성합니다. 기본 빌드는 임시 서명(ad hoc)만 적용하며 Apple 공증과 Developer ID 서명은 포함하지 않습니다. Windows 릴리스와 태그는 보존하고 macOS 소스는 `v0.1.4-macos` 태그로 구분합니다.

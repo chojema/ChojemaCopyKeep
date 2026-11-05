@@ -29,7 +29,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private var labels: [String: NSTextField] = [:]
     private let save = NSButton()
     private let cancel = NSButton()
-    private let about = NSTextField(labelWithString: "Chojema CopyKeep 0.1.3 · Park Chulwoo")
+    private let about = NSTextField(labelWithString: "Chojema CopyKeep 0.1.4 · Park Chulwoo")
     var onSave: ((Preferences, Bool) -> Bool)?
     var onLanguage: ((String) -> Void)?
     private var original = Preferences()
@@ -39,9 +39,8 @@ final class SettingsController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.backgroundColor = Palette.background
-        let root = window.contentView!
-        root.wantsLayer = true
-        root.layer?.backgroundColor = Palette.background.cgColor
+        let root = ThemedView(fill: { Palette.background })
+        window.contentView = root
         func label(_ name: String, _ y: CGFloat) {
             let field = NSTextField(labelWithString: tr(name))
             field.frame = NSRect(x: 24, y: y, width: 170, height: 23)

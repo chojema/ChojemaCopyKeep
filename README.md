@@ -8,7 +8,7 @@
 
 Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/latest)에서 Windows x64 ZIP을 다운로드한 뒤 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 실행 상태는 알림 영역 아이콘으로 확인할 수 있으며 관리자 권한은 필요하지 않습니다.
 
-macOS 13 이상에서는 [macOS 0.1.3 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.3-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
+macOS 13 이상에서는 [macOS 0.1.4 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.4-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
 
 ## 사용 방법
 
@@ -56,7 +56,7 @@ macOS의 저장 위치는 `~/Library/Application Support/ChojemaCopyKeep/history
 - 붙여넣기는 원래 앱에 `Ctrl + V` 입력을 전송하는 방식입니다. 대상 앱의 입력 제한에 따라 동작하지 않을 수 있으며, 관리자 권한 앱과 보안 입력 화면에서는 제한될 수 있습니다.
 - 앱별 붙여넣기 호환성과 장시간 실행 동작은 추가 검증이 필요합니다.
 - macOS는 원래 앱으로 전환한 뒤 `Command + V` 입력을 전송합니다. 보안 입력이나 대상 앱의 제한에 따라 동작하지 않을 수 있으며 입력 전송이 내용 수용을 보장하지는 않습니다.
-- macOS 0.1.3은 Apple Silicon에서 합성 데이터 검사와 화면 렌더링을 검증했습니다. Intel에서는 빌드와 실행 파일 구성을 확인했으며 실제 Intel 하드웨어, 외부 앱별 붙여넣기와 로그인 후 자동 실행은 미검증입니다.
+- macOS 0.1.4는 Apple Silicon에서 합성 데이터 검사와 화면 렌더링을 검증했습니다. Intel에서는 빌드와 실행 파일 구성을 확인했으며 실제 Intel 하드웨어, 외부 앱별 붙여넣기와 로그인 후 자동 실행은 미검증입니다.
 
 ## 소스 빌드
 
@@ -76,7 +76,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.1.3/`에 생성됩니다. macOS 0.1.3 소스는 `v0.1.3-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
+앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.1.4/`에 생성됩니다. macOS 0.1.4 소스는 `v0.1.4-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
 
 ## 프로젝트 정보
 

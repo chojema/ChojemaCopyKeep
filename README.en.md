@@ -8,7 +8,7 @@ A Windows and macOS clipboard manager that saves copied text and images and lets
 
 The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and run `ChojemaCopyKeep.exe`. The app icon appears in the notification area. Administrator privileges are not required.
 
-For macOS 13 or later, download the Universal ZIP from the [macOS 0.1.3 release](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.3-macos), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
+For macOS 13 or later, download the Universal ZIP from the [macOS 0.1.4 release](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.4-macos), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
 
 ## Usage
 
@@ -56,7 +56,7 @@ Sensitive copied content may also be saved. The [privacy guide](docs/PRIVACY.en.
 - Pasting sends `Ctrl + V` to the original app. Input restrictions in the destination app can prevent pasting, including in elevated apps and secure input screens.
 - Paste compatibility across apps and extended runtime behavior require additional validation.
 - On macOS, pasting activates the original app and sends `Command + V`. Secure input or destination app restrictions can prevent pasting. Sending input does not guarantee that the destination accepts the content.
-- macOS 0.1.3 was checked with synthetic data and rendered screens on Apple Silicon. Intel builds and executable structure were checked; physical Intel hardware, pasting across external apps, and startup after login remain unverified.
+- macOS 0.1.4 was checked with synthetic data and rendered screens on Apple Silicon. Intel builds and executable structure were checked; physical Intel hardware, pasting across external apps, and startup after login remain unverified.
 
 ## Build from Source
 
@@ -76,7 +76,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.1.3/`. Use the `v0.1.3-macos` tag for macOS 0.1.3 source. The original `v0.1.3` tag contains Windows source.
+The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.1.4/`. Use the `v0.1.4-macos` tag for macOS 0.1.4 source. The original `v0.1.3` tag contains Windows source.
 
 ## Project Information
 
