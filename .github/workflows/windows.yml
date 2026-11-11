@@ -20,7 +20,13 @@ jobs:
         run: ./tools/build.ps1 -Test
       - name: Package Windows distributions
         shell: powershell
-        run: ./tools/package-windows.ps1 -Compiler 'C:/Program Files (x86)/NSIS/makensis.exe'
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'nsis-3.13.zip'
+          curl.exe -fL --retry 3 -o $archive 'https://downloads.sourceforge.net/project/nsis/NSIS%203/3.13/nsis-3.13.zip'
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS download failed.' }
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne 'BA63DFFC4410EE89193E1CB5A41989991BD77C61068DA17E3156D136B7B0B3D8') { throw 'NSIS checksum mismatch.' }
+          Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $env:RUNNER_TEMP 'nsis')
+          ./tools/package-windows.ps1 -Compiler (Join-Path $env:RUNNER_TEMP 'nsis/nsis-3.13/makensis.exe')
       - name: Upload Windows distributions
         uses: actions/upload-artifact@v4
         with:
