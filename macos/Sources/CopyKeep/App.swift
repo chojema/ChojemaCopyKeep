@@ -16,6 +16,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     private var target: NSRunningApplication?
     private var pastePending = false
     private var collectionErrorShown = false
+    private var checkingUpdate = false
+    private let updateChecker = UpdateChecker()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if CommandLine.arguments.contains("--smoke-test") { runSmoke(); return }
@@ -91,13 +93,16 @@ final class AppController: NSObject, NSApplicationDelegate {
         snippetEditor.refreshLanguage()
         let menu = NSMenu()
         for (key, action) in [("history", #selector(openHistory)), ("settings", #selector(openSettings)),
-                              (paused ? "resume" : "pause", #selector(togglePause)), ("quit", #selector(quit))] {
+                              (paused ? "resume" : "pause", #selector(togglePause)),
+                              (checkingUpdate ? "updateChecking" : "checkUpdate", #selector(checkForUpdates)), ("quit", #selector(quit))] {
             if key == "quit" { menu.addItem(.separator()) }
             let title = key == "history" ? tr(key) + "  " + ShortcutKeys.label(preferences) : tr(key)
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
+            if action == #selector(checkForUpdates) { item.isEnabled = !checkingUpdate }
             menu.addItem(item)
         }
+        menu.autoenablesItems = false
         status?.menu = menu
         status?.button?.toolTip = "Chojema CopyKeep · " + tr(paused ? "paused" : "running")
         status?.button?.setAccessibilityLabel("Chojema CopyKeep · " + tr(paused ? "paused" : "running"))
@@ -235,6 +240,24 @@ final class AppController: NSObject, NSApplicationDelegate {
     @objc private func togglePause() { lastChange = NSPasteboard.general.changeCount; paused.toggle(); refreshLanguage() }
     @objc private func quit() { NSApp.terminate(nil) }
 
+    @objc private func checkForUpdates() {
+        guard !checkingUpdate else { return }
+        checkingUpdate = true
+        refreshLanguage()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let latest = try? await self.updateChecker.latest()
+            self.checkingUpdate = false
+            self.refreshLanguage()
+            let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+            let alert = makeUpdateAlert(current: current, latest: latest)
+            NSApp.activate(ignoringOtherApps: true)
+            if alert.runModal() == .alertSecondButtonReturn, !NSWorkspace.shared.open(UpdateChecker.releasePage) {
+                showAlert("updateOpenError")
+            }
+        }
+    }
+
     private func saveSettings(_ value: Preferences, login: Bool) -> Bool {
         let changedKey = preferences.keyCode != value.keyCode || preferences.modifiers != value.modifiers
         if changedKey, !hotKey.register(key: value.keyCode, modifiers: value.modifiers) { showAlert("shortcutConflict"); return false }
@@ -269,6 +292,31 @@ final class AppController: NSObject, NSApplicationDelegate {
         Localization.shared.language = args[index + 1] == "en" ? "en-US" : "ko-KR"
         let scenario = args.indices.contains(index + 3) ? args[index + 3] : "long"
         let output = URL(fileURLWithPath: args[index + 2])
+        if scenario.hasPrefix("update-") {
+            Task { @MainActor in
+                let latest: ReleaseVersion?
+                if scenario == "update-live" { latest = try? await self.updateChecker.latest() }
+                else { latest = scenario == "update-error" ? nil : ReleaseVersion(scenario == "update-available" ? "0.4.0" : "0.3.0") }
+                let alert = makeUpdateAlert(current: "0.3.0", latest: latest)
+                alert.layout()
+                alert.window.center()
+                alert.window.makeKeyAndOrderFront(nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    do {
+                        guard let view = alert.window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { exit(1) }
+                        view.cacheDisplay(in: view.bounds, to: bitmap)
+                        try bitmap.representation(using: .png, properties: [:])!.write(to: output)
+                        let report: [String: Any] = ["scenario": scenario, "language": Localization.shared.language,
+                            "latest": latest?.text ?? "", "body": alert.informativeText, "buttons": alert.buttons.map(\.title)]
+                        try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+                            .write(to: output.deletingPathExtension().appendingPathExtension("json"))
+                        if scenario == "update-live", latest == nil { exit(1) }
+                        NSApp.terminate(nil)
+                    } catch { exit(1) }
+                }
+            }
+            return
+        }
         var items: [HistoryItem] = []
         let values = [tr("sampleShort"), tr("sampleLong"), tr("sampleMultiline")]
         for (offset, value) in values.enumerated() { items.append(HistoryItem(id: Int64(offset + 1), kind: "text", payload: Data(value.utf8))) }

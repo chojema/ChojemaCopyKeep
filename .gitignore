@@ -4,6 +4,7 @@
 !/CMakeLists.txt
 !/README.md
 !/README.en.md
+!/LICENSE
 !/public-files.txt
 !/src/
 /src/*
@@ -13,6 +14,11 @@
 !/src/image.cpp
 !/src/image.h
 !/src/ui.h
+!/src/update.h
+!/src/update.cpp
+!/tests/
+/tests/*
+!/tests/update_test.cpp
 !/resources/
 /resources/*
 !/resources/ids.h
@@ -45,6 +51,7 @@
 !/macos/Sources/CopyKeep/
 /macos/Sources/CopyKeep/*
 !/macos/Sources/CopyKeep/App.swift
+!/macos/Sources/CopyKeep/Update.swift
 !/macos/Sources/CopyKeep/Clipboard.swift
 !/macos/Sources/CopyKeep/Localization.swift
 !/macos/Sources/CopyKeep/Popup.swift

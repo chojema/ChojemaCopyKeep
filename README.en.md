@@ -12,8 +12,8 @@ The app targets x64 Windows 10 and Windows 11. Choose either option; neither req
 
 | Distribution | File | Usage |
 | --- | --- | --- |
-| Installer | `ChojemaCopyKeep-windows-x64-setup-0.2.0.exe` | Install, then launch from the Start menu. Remove it through Installed apps in Windows Settings. |
-| Standalone | `ChojemaCopyKeep-windows-x64-portable-0.2.0.zip` | Extract and run `ChojemaCopyKeep.exe`. No installation or uninstall registration is required. |
+| Installer | `ChojemaCopyKeep-windows-x64-setup-0.3.0.exe` | Install, then launch from the Start menu. Remove it through Installed apps in Windows Settings. |
+| Standalone | `ChojemaCopyKeep-windows-x64-portable-0.3.0.zip` | Extract and run `ChojemaCopyKeep.exe`. No installation or uninstall registration is required. |
 
 The default installation directory is `%LOCALAPPDATA%\Programs\ChojemaCopyKeep`. Quit the running app through its notification area menu before installing, updating, or uninstalling. Also quit the existing app before launching a new standalone version. Only one copy runs at a time; a new executable exits if another copy is already running.
 
@@ -54,6 +54,12 @@ The default macOS shortcut is also `Control + Shift + Z`. Click the menu bar ico
 
 Storage limits are 32 MiB per item, 16,777,216 pixels per image, and 256 MiB of stored payloads. Database file size and process memory usage may differ from these limits.
 
+## Checking for Updates
+
+On Windows, right-click the notification area icon; on macOS, click the menu bar icon. Choose `Check for updates`. The check runs in the background and shows the current and latest stable versions. When an update is available, you can open the official release page in your browser. Download and install it manually: quit the app before installing or extracting and running a new ZIP. History and settings stay in their existing storage location.
+
+The app contacts GitHub only when you select this menu item. Connection failures are reported separately and never shown as an up-to-date result. This feature is available in Windows and macOS 0.3.0 or later. On macOS, quit the app, extract the download, and replace the existing app in Applications.
+
 ## Snippets
 
 Snippets are available in Windows 0.2.0 and macOS 0.2.0.
@@ -68,7 +74,7 @@ Snippets are stored in the same local database without app-level encryption. Aut
 
 ## Data Storage and Privacy
 
-History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`. There is no cloud synchronization, account login, remote transmission, or usage collection. The app does not encrypt its database.
+History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`. There is no clipboard content upload, cloud synchronization, account login, or usage collection. Checking for updates contacts GitHub without sending history, snippets, or settings. The app does not encrypt its database.
 
 On macOS the location is `~/Library/Application Support/ChojemaCopyKeep/history.db`. Each operating system keeps its own history.
 
@@ -101,11 +107,15 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.2.0/`. Use the `v0.2.0-macos` tag for macOS 0.2.0 source and `v0.2.0` for Windows 0.2.0 source.
+The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.3.0/`. Use the shared `v0.3.0` tag for Windows and macOS 0.3.0 source.
+
+## License
+
+The project uses the [MIT License](LICENSE), permitting commercial use, modification, and redistribution while retaining its copyright and permission notice. The software is provided without warranty. Third-party components retain their own notices.
 
 ## Project Information
 
 - Developer and maintainer: Park Chulwoo
-- License: Not designated
+- License: [MIT](LICENSE)
 
 Operating system and SQLite components remain subject to their respective rights.

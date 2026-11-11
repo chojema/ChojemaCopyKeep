@@ -12,8 +12,8 @@ Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. 관리자 권�
 
 | 배포 방식 | 파일 | 사용 방법 |
 | --- | --- | --- |
-| 설치형 | `ChojemaCopyKeep-windows-x64-setup-0.2.0.exe` | 설치 후 시작 메뉴에서 실행합니다. Windows 설정의 설치된 앱에서 제거할 수 있습니다. |
-| 단독 실행형 | `ChojemaCopyKeep-windows-x64-portable-0.2.0.zip` | 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 설치와 제거 등록이 없습니다. |
+| 설치형 | `ChojemaCopyKeep-windows-x64-setup-0.3.0.exe` | 설치 후 시작 메뉴에서 실행합니다. Windows 설정의 설치된 앱에서 제거할 수 있습니다. |
+| 단독 실행형 | `ChojemaCopyKeep-windows-x64-portable-0.3.0.zip` | 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 설치와 제거 등록이 없습니다. |
 
 설치형의 기본 위치는 `%LOCALAPPDATA%\Programs\ChojemaCopyKeep`입니다. 설치, 업데이트 또는 제거 전에는 알림 영역 메뉴에서 실행 중인 앱을 종료해야 합니다. 단독 실행형으로 새 버전을 실행할 때도 기존 앱을 먼저 종료하세요. 두 방식은 동시에 실행되지 않으며, 기존 앱이 실행 중이면 새 실행 파일은 종료됩니다.
 
@@ -54,6 +54,12 @@ macOS에서도 기본 호출 단축키는 `Control + Shift + Z`입니다. 메뉴
 
 저장 한도는 항목당 32 MiB, 이미지당 16,777,216픽셀, 저장된 원문 합계 256 MiB입니다. 데이터베이스 파일 크기와 프로세스 메모리 사용량은 별도로 달라질 수 있습니다.
 
+## 업데이트 확인
+
+Windows 알림 영역 아이콘을 마우스 오른쪽 버튼으로 클릭하거나 macOS 메뉴 막대 아이콘을 클릭하고 `업데이트 확인`을 선택합니다. 확인은 백그라운드에서 진행하며 현재 버전과 최신 정식 버전을 안내합니다. 새 버전이 있으면 확인 후 공식 릴리스 페이지를 브라우저로 엽니다. 다운로드와 설치는 직접 진행하며, 앱을 종료한 뒤 설치하거나 새 ZIP의 압축을 풀어 실행합니다. 기록과 설정은 기존 저장 위치에 유지됩니다.
+
+업데이트 확인은 사용자가 메뉴를 선택할 때만 GitHub에 접속합니다. 연결 실패는 별도로 안내하며 최신 버전이라고 표시하지 않습니다. 이 기능은 Windows와 macOS 0.3.0부터 제공됩니다. macOS에서는 앱을 종료한 뒤 압축을 푼 새 앱으로 응용 프로그램의 기존 앱을 교체합니다.
+
 ## 상용구
 
 상용구는 Windows 0.2.0과 macOS 0.2.0에서 사용할 수 있습니다.
@@ -68,7 +74,7 @@ macOS에서도 기본 호출 단축키는 `Control + Shift + Z`입니다. 메뉴
 
 ## 데이터 저장 및 개인정보
 
-기록과 설정은 `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`에 저장됩니다. 클라우드 동기화, 계정 로그인, 원격 전송, 사용량 수집 기능은 없습니다. 데이터베이스에 앱 자체 암호화는 적용되지 않습니다.
+기록과 설정은 `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`에 저장됩니다. 클립보드 내용의 원격 전송, 클라우드 동기화, 계정 로그인, 사용량 수집 기능은 없습니다. 업데이트 확인을 실행하면 GitHub에 접속하며 기록·상용구·설정은 전송하지 않습니다. 데이터베이스에 앱 자체 암호화는 적용되지 않습니다.
 
 macOS의 저장 위치는 `~/Library/Application Support/ChojemaCopyKeep/history.db`입니다. 두 운영체제의 기록은 독립적으로 보관됩니다.
 
@@ -101,11 +107,15 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.2.0/`에 생성됩니다. macOS 0.2.0 소스는 `v0.2.0-macos`, Windows 0.2.0 소스는 `v0.2.0` 태그를 사용합니다.
+앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.3.0/`에 생성됩니다. Windows와 macOS 0.3.0 소스는 공통 `v0.3.0` 태그를 사용합니다.
+
+## 라이선스
+
+[MIT 라이선스](LICENSE)를 적용합니다. 저작권 및 허가 고지를 유지하면 상업적 사용, 수정과 재배포가 가능합니다. 소프트웨어는 보증 없이 제공됩니다. 제3자 구성 요소에는 각 구성 요소의 고지가 적용됩니다.
 
 ## 프로젝트 정보
 
 - 개발 및 유지관리: Park Chulwoo
-- 라이선스: 미지정
+- 라이선스: [MIT](LICENSE)
 
 운영체제와 SQLite 관련 구성 요소의 권리는 각 권리자에게 있습니다.

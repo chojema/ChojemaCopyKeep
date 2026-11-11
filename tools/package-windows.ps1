@@ -19,7 +19,7 @@ foreach ($path in @($payload, $setup, $archive)) {
 }
 New-Item -ItemType Directory -Path (Join-Path $payload 'docs') -Force | Out-Null
 Copy-Item -LiteralPath $exe.FullName -Destination (Join-Path $payload 'ChojemaCopyKeep.exe')
-foreach ($file in @('README.md', 'README.en.md', 'docs/BUILD.ko.md', 'docs/BUILD.en.md', 'docs/PRIVACY.ko.md', 'docs/PRIVACY.en.md')) {
+foreach ($file in @('LICENSE', 'README.md', 'README.en.md', 'docs/BUILD.ko.md', 'docs/BUILD.en.md', 'docs/PRIVACY.ko.md', 'docs/PRIVACY.en.md')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $file) -Destination (Join-Path $payload $file)
 }
 & $compilerPath /INPUTCHARSET UTF8 /V2 "/DVERSION=$version" "/DPAYLOAD=$payload" "/DOUTPUT=$setup" (Join-Path $PSScriptRoot 'windows-installer.nsi')

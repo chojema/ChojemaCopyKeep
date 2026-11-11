@@ -2,6 +2,7 @@
 #include "image.h"
 #include "ids.h"
 #include "ui.h"
+#include "update.h"
 #include <dwmapi.h>
 #include <uxtheme.h>
 #include <windowsx.h>
@@ -13,6 +14,8 @@
 #include <array>
 #include <cstring>
 #include <iostream>
+#include <future>
+#include <chrono>
 #include <memory>
 #include <stdexcept>
 
@@ -21,7 +24,7 @@ namespace {
 constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
 constexpr int mode_id=305, search_id=306, new_snippet_id=307, edit_snippet_id=308, save_snippet_id=309;
-constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, hover_delay = 250;
+constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, update_timer = 13, hover_delay = 250;
 const COLORREF accent = RGB(23,107,99);
 HINSTANCE instance;
 std::wstring text(UINT id, bool english) {
@@ -97,6 +100,7 @@ std::wstring window_text(HWND window) {
 class App {
 public:
     Store store;
+    std::future<Version> updateCheck;
     bool english=false, promote=true, paused=false, testing=false, settingsOpen=false;
     UINT modifiers=MOD_CONTROL|MOD_SHIFT, key='Z';
     HWND host=nullptr, popup=nullptr, list=nullptr, preview=nullptr, buttons[4]{}, target=nullptr;
@@ -573,12 +577,37 @@ public:
     void menu() {
         HMENU menu=CreatePopupMenu();
         AppendMenuW(menu,MF_STRING,1,t(IDS_APP).c_str()); AppendMenuW(menu,MF_STRING,2,t(IDS_SETTINGS).c_str());
-        AppendMenuW(menu,MF_STRING,3,t(paused?IDS_RESUME:IDS_PAUSE).c_str()); AppendMenuW(menu,MF_STRING,4,t(IDS_ABOUT).c_str()); AppendMenuW(menu,MF_SEPARATOR,0,nullptr); AppendMenuW(menu,MF_STRING,5,t(IDS_QUIT).c_str());
+        AppendMenuW(menu,MF_STRING,3,t(paused?IDS_RESUME:IDS_PAUSE).c_str()); AppendMenuW(menu,MF_STRING,4,t(IDS_ABOUT).c_str());
+        AppendMenuW(menu,MF_STRING|(updateCheck.valid()?MF_GRAYED:0),6,t(updateCheck.valid()?IDS_UPDATE_CHECKING:IDS_CHECK_UPDATE).c_str());
+        AppendMenuW(menu,MF_SEPARATOR,0,nullptr); AppendMenuW(menu,MF_STRING,5,t(IDS_QUIT).c_str());
         POINT point{}; GetCursorPos(&point); SetForegroundWindow(host);
         UINT choice=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,point.x,point.y,0,host,nullptr); DestroyMenu(menu);
         if (choice==1) show(); else if (choice==2) settings(); else if (choice==3) paused=!paused;
         else if (choice==4) MessageBoxW(popup,t(IDS_AUTHOR).c_str(),L"Chojema CopyKeep",MB_OK);
         else if (choice==5) DestroyWindow(host);
+        else if (choice==6) start_update_check();
+    }
+    void start_update_check() {
+        if (updateCheck.valid() || testing) return;
+        if (!SetTimer(host,update_timer,100,nullptr)) { notify(IDS_UPDATE_ERROR); return; }
+        try { updateCheck=std::async(std::launch::async,check_update); }
+        catch (...) { KillTimer(host,update_timer); notify(IDS_UPDATE_ERROR); }
+    }
+    void finish_update_check() {
+        if (!updateCheck.valid() || updateCheck.wait_for(std::chrono::seconds(0))!=std::future_status::ready) return;
+        KillTimer(host,update_timer);
+        Version latest;
+        try { latest=updateCheck.get(); }
+        catch (...) { MessageBoxW(popup,t(IDS_UPDATE_ERROR).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONWARNING); return; }
+        auto current=wide(COPYKEEP_VERSION);
+        bool newer=latest>*parse_version(current);
+        auto body=t(newer?IDS_UPDATE_AVAILABLE:IDS_UPDATE_CURRENT);
+        body+=L"\n\n"+t(IDS_CURRENT_VERSION)+L" "+current;
+        body+=L"\n"+t(IDS_LATEST_VERSION)+L" "+std::to_wstring(latest[0])+L"."+std::to_wstring(latest[1])+L"."+std::to_wstring(latest[2]);
+        if (MessageBoxW(popup,body.c_str(),L"Chojema CopyKeep",newer?MB_YESNO|MB_ICONINFORMATION|MB_DEFBUTTON2:MB_OK|MB_ICONINFORMATION)==IDYES) {
+            auto opened=reinterpret_cast<INT_PTR>(ShellExecuteW(popup,L"open",release_page,nullptr,nullptr,SW_SHOWNORMAL));
+            if (opened<=32) MessageBoxW(popup,t(IDS_UPDATE_OPEN_ERROR).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONWARNING);
+        }
     }
     void paint_content(HDC dc) {
         RECT rc{}; GetClientRect(popup,&rc);
@@ -700,6 +729,7 @@ public:
             if (message==WM_HOTKEY) { self->show(); return 0; }
             if (message==WM_TIMER && w==capture_timer) { self->capture(); return 0; }
             if (message==WM_TIMER && w==paste_timer) { self->finish_paste(); return 0; }
+            if (message==WM_TIMER && w==update_timer) { self->finish_update_check(); return 0; }
             if (message==tray_message) {
                 if (l==WM_LBUTTONUP) self->show(); else if (l==WM_RBUTTONUP || l==WM_CONTEXTMENU) self->menu(); return 0;
             }
@@ -840,7 +870,7 @@ int self_test(const std::filesystem::path& root) {
         check(header->bV5Width==320 && header->bV5Height==-180 && dib.size()==sizeof(BITMAPV5HEADER)+320*180*4,"Image paste format");
         auto imageId=store.put(1,image.png,L"",image.width,image.height); check(store.payload(imageId)==image.png,"Image persistence");
         HBITMAP preview=thumbnail(image.png,120,80); check(preview!=nullptr,"Image preview"); if (preview) DeleteObject(preview);
-        for (UINT id=IDS_APP;id<=IDS_SNIPPET_DELETE_CONFIRM;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
+        for (UINT id=IDS_APP;id<=IDS_UPDATE_OPEN_ERROR;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
     }
     {
         Store store(folder); check(store.setting("language","ko")=="en" && store.list().size()==3,"Restart persistence");

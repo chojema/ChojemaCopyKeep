@@ -65,7 +65,7 @@ BEGIN
     IDS_PAUSE "수집 일시 중지"
     IDS_RESUME "수집 다시 시작"
     IDS_ABOUT "앱 정보"
-    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.2.0\n텍스트와 이미지의 로컬 복사 기록"
+    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.3.0\n텍스트와 이미지의 로컬 복사 기록"
     IDS_CAPTURE_ERROR "복사 내용을 저장하지 못했습니다. 항목은 최대 32 MiB, 이미지는 최대 16,777,216픽셀까지 지원합니다."
     IDS_DATABASE_ERROR "기록 저장소를 열지 못했습니다. 저장 위치의 접근 권한을 확인해 주세요."
     IDS_PASTE_HINT "원래 입력 위치로 붙여넣습니다."
@@ -86,6 +86,14 @@ BEGIN
     IDS_BAD_SNIPPET "공백이 아닌 제목과 내용을 입력하세요. 제목은 한 줄로 80자, 내용은 65,536자까지 입력할 수 있습니다."
     IDS_SNIPPET_HELP "기록 전체 삭제와 보관 한도는 상용구에 적용되지 않습니다."
     IDS_SNIPPET_DELETE_CONFIRM "선택한 상용구를 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+    IDS_CHECK_UPDATE "업데이트 확인"
+    IDS_UPDATE_CHECKING "업데이트 확인 중…"
+    IDS_UPDATE_CURRENT "현재 버전은 최신 정식 버전과 같거나 더 새롭습니다."
+    IDS_UPDATE_AVAILABLE "새 버전이 있습니다. 다운로드할 공식 릴리스 페이지를 열까요?\n앱을 종료한 뒤 새 버전을 설치하거나 압축을 풀어 실행하세요. 기록과 설정은 유지됩니다."
+    IDS_UPDATE_ERROR "업데이트를 확인하지 못했습니다. 인터넷 연결을 확인하고 나중에 다시 시도하세요."
+    IDS_CURRENT_VERSION "현재 버전:"
+    IDS_LATEST_VERSION "최신 정식 버전:"
+    IDS_UPDATE_OPEN_ERROR "브라우저를 열지 못했습니다. README의 다운로드 링크에서 최신 버전을 확인하세요."
 END
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
@@ -118,7 +126,7 @@ BEGIN
     IDS_PAUSE "Pause collection"
     IDS_RESUME "Resume collection"
     IDS_ABOUT "About"
-    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.2.0\nLocal clipboard history for text and images"
+    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.3.0\nLocal clipboard history for text and images"
     IDS_CAPTURE_ERROR "The item could not be saved. Items are limited to 32 MiB and images to 16,777,216 pixels."
     IDS_DATABASE_ERROR "The history database could not be opened. Check access to the storage location."
     IDS_PASTE_HINT "Paste into the original insertion point."
@@ -139,12 +147,20 @@ BEGIN
     IDS_BAD_SNIPPET "Enter a nonblank title and content. Use a single-line title up to 80 characters and content up to 65,536 characters."
     IDS_SNIPPET_HELP "Clearing history and the history limit do not affect snippets."
     IDS_SNIPPET_DELETE_CONFIRM "Delete the selected snippet? This cannot be undone."
+    IDS_CHECK_UPDATE "Check for updates"
+    IDS_UPDATE_CHECKING "Checking for updates…"
+    IDS_UPDATE_CURRENT "Your version matches or is newer than the latest stable release."
+    IDS_UPDATE_AVAILABLE "A new version is available. Open the official release page to download it?\nQuit the app before installing or extracting and running the new version. History and settings are preserved."
+    IDS_UPDATE_ERROR "Could not check for updates. Check your internet connection and try again later."
+    IDS_CURRENT_VERSION "Current version:"
+    IDS_LATEST_VERSION "Latest stable version:"
+    IDS_UPDATE_OPEN_ERROR "Could not open the browser. Use the download link in the README to check for the latest version."
 END
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 1 VERSIONINFO
-FILEVERSION 0,2,0,0
-PRODUCTVERSION 0,2,0,0
+FILEVERSION 0,3,0,0
+PRODUCTVERSION 0,3,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -157,12 +173,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Park Chulwoo\0"
             VALUE "FileDescription", "Chojema CopyKeep\0"
-            VALUE "FileVersion", "0.2.0\0"
+            VALUE "FileVersion", "0.3.0\0"
             VALUE "InternalName", "ChojemaCopyKeep\0"
             VALUE "LegalCopyright", "Copyright (c) 2026 Park Chulwoo\0"
             VALUE "OriginalFilename", "ChojemaCopyKeep.exe\0"
             VALUE "ProductName", "Chojema CopyKeep\0"
-            VALUE "ProductVersion", "0.2.0\0"
+            VALUE "ProductVersion", "0.3.0\0"
         END
     END
     BLOCK "VarFileInfo"

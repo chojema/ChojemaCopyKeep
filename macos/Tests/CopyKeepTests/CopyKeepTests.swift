@@ -5,6 +5,42 @@ import Carbon
 
 @Suite(.serialized)
 struct CopyKeepTests {
+    @Test func testUpdateVersionsAndReleaseLocations() throws {
+        expectEqual(ReleaseVersion("0.3.0")?.text, "0.3.0")
+        expectEqual(ReleaseVersion("10.20.65535")?.components, [10, 20, 65535])
+        expectTrue(try unwrap(ReleaseVersion("0.10.0")) > unwrap(ReleaseVersion("0.9.9")))
+        expectTrue(try unwrap(ReleaseVersion("1.0.0")) > unwrap(ReleaseVersion("0.99.99")))
+        expectFalse(try unwrap(ReleaseVersion("0.3.0")) > unwrap(ReleaseVersion("0.3.0")))
+        for value in ["", "1", "1.2", "1.2.3.4", "1..3", "-1.2.3", "1.2.3-beta", "1.2.3-macos",
+                      "1.2.3\n", " 1.2.3", "01.2.3", "65536.0.0", "9999999999.0.0", "1.2.x"] {
+            expectNil(ReleaseVersion(value))
+        }
+        let prefix = "https://github.com/chojema/ChojemaCopyKeep/releases/tag/v"
+        expectEqual(ReleaseVersion.fromLocation(prefix + "0.3.0"), ReleaseVersion("0.3.0"))
+        expectEqual(ReleaseVersion.fromLocation("/chojema/ChojemaCopyKeep/releases/tag/v0.3.0"), ReleaseVersion("0.3.0"))
+        for value in [prefix + "1.0.0-macos", prefix + "1.0.0?test",
+                      prefix.replacingOccurrences(of: "https:", with: "http:") + "1.0.0",
+                      prefix.replacingOccurrences(of: "github.com", with: "github.com.evil") + "1.0.0",
+                      prefix.replacingOccurrences(of: "/chojema/", with: "/other/") + "1.0.0"] {
+            expectNil(ReleaseVersion.fromLocation(value))
+        }
+    }
+
+    @Test @MainActor func testUpdateAlertsInBothLanguages() {
+        let original = Localization.shared.language
+        defer { Localization.shared.language = original }
+        for language in Localization.languages {
+            Localization.shared.language = language
+            let available = makeUpdateAlert(current: "0.3.0", latest: ReleaseVersion("0.4.0"))
+            expectEqual(available.buttons.count, 2)
+            expectEqual(available.buttons[0].title, tr("cancel"))
+            expectTrue(available.informativeText.contains("0.3.0") && available.informativeText.contains("0.4.0"))
+            for version in ["0.3.0", "0.2.0"] { expectEqual(makeUpdateAlert(current: "0.3.0", latest: ReleaseVersion(version)).buttons.count, 1) }
+            expectEqual(makeUpdateAlert(current: "0.3.0", latest: nil).informativeText, tr("updateError"))
+            expectEqual(makeUpdateAlert(current: "bad", latest: ReleaseVersion("0.4.0")).informativeText, tr("updateError"))
+        }
+    }
+
     private let directory = FileManager.default.temporaryDirectory.appendingPathComponent("CopyKeepTests-" + UUID().uuidString)
 
     private func text(_ value: String) -> Data { Data(value.utf8) }

@@ -12,7 +12,9 @@ In macOS 0.2.0 and the Windows source build, user-created snippets are stored in
 
 ## Transmission
 
-The app has no clipboard upload feature, account login, cloud synchronization, usage collection, or automatic updates. The GitHub repository and releases contain source and distribution files only.
+The app has no clipboard upload feature, account login, cloud synchronization, usage collection, or automatic update downloads or installation. The GitHub repository and releases contain source and distribution files only.
+
+Selecting `Check for updates` in Windows or macOS 0.3.0 or later makes an HTTPS request to GitHub for the latest stable release location. GitHub and configured network proxies may receive normal connection information such as your IP address and app name. Clipboard content, snippets, and settings are not included. There are no startup or periodic checks. Confirming the update prompt opens the official release page in your default browser.
 
 ## Pausing Collection and Deleting History
 

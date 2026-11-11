@@ -59,3 +59,12 @@
 "noSnippets" = "검색 결과가 없습니다.";
 "deleteSnippet" = "선택한 상용구를 삭제할까요?";
 "deleteSnippetBody" = "이 작업은 되돌릴 수 없습니다. 복사 기록은 유지됩니다.";
+"checkUpdate" = "업데이트 확인";
+"updateChecking" = "업데이트 확인 중…";
+"updateCurrent" = "현재 버전은 최신 정식 버전과 같거나 더 새롭습니다.";
+"updateAvailable" = "새 버전이 있습니다. 다운로드할 공식 릴리스 페이지를 열까요?\n앱을 종료한 뒤 새 버전을 설치하거나 압축을 풀어 응용 프로그램의 앱을 교체하세요. 기록과 설정은 유지됩니다.";
+"updateError" = "업데이트를 확인하지 못했습니다. 인터넷 연결을 확인하고 나중에 다시 시도하세요.";
+"currentVersion" = "현재 버전:";
+"latestVersion" = "최신 정식 버전:";
+"openRelease" = "다운로드 페이지 열기";
+"updateOpenError" = "브라우저를 열지 못했습니다. README의 다운로드 링크에서 최신 버전을 확인하세요.";

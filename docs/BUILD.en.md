@@ -23,7 +23,7 @@ The executable is generated at `build/windows/ChojemaCopyKeep.exe`. Launching it
 
 ## Checks
 
-CTest covers text and image storage, duplicates, promotion settings, deletion, retention limits, settings and restart persistence, previews, and both language resources. It uses temporary data under the supplied build folder and does not collect the actual clipboard.
+CTest covers text and image storage, duplicates, promotion settings, deletion, retention limits, settings and restart persistence, previews, and both language resources. The `update_versions` test checks numeric version comparison and rejection of invalid versions and external URLs without network access. Tests use temporary data under the supplied build folder and do not collect the actual clipboard.
 
 Popup checks in both languages cover automatic preview expansion and collapse, mouse hover previews, keyboard and mouse selection, preservation of the paste command, and placement at screen edges. They use synthetic data and do not send actual paste input.
 

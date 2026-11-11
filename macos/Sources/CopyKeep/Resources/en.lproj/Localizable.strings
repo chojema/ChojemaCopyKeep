@@ -59,3 +59,12 @@
 "noSnippets" = "No matching snippets.";
 "deleteSnippet" = "Delete the selected snippet?";
 "deleteSnippetBody" = "This cannot be undone. Clipboard history is preserved.";
+"checkUpdate" = "Check for updates";
+"updateChecking" = "Checking for updates…";
+"updateCurrent" = "Your version matches or is newer than the latest stable release.";
+"updateAvailable" = "A new version is available. Open the official release page to download it?\nQuit the app before installing or extracting and replacing the app in Applications. History and settings are preserved.";
+"updateError" = "Could not check for updates. Check your internet connection and try again later.";
+"currentVersion" = "Current version:";
+"latestVersion" = "Latest stable version:";
+"openRelease" = "Open download page";
+"updateOpenError" = "Could not open the browser. Use the download link in the README to check for the latest version.";

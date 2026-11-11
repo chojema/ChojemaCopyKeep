@@ -39,3 +39,8 @@ tools/build-macos.sh
 tools/package-macos.sh
 script/build_and_run.sh
 .github/workflows/macos.yml
+LICENSE
+src/update.h
+src/update.cpp
+tests/update_test.cpp
+macos/Sources/CopyKeep/Update.swift
