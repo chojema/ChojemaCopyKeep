@@ -64,7 +64,7 @@ Store::Store(const std::filesystem::path& folder) {
         exec("PRAGMA cache_size=-512; PRAGMA secure_delete=ON; PRAGMA journal_mode=TRUNCATE;"
              "CREATE TABLE IF NOT EXISTS clips(id INTEGER PRIMARY KEY,kind INTEGER NOT NULL,digest TEXT UNIQUE NOT NULL,preview TEXT NOT NULL,payload BLOB NOT NULL,width INTEGER,height INTEGER,rank INTEGER NOT NULL);"
              "CREATE INDEX IF NOT EXISTS clip_rank ON clips(rank DESC);"
-             "CREATE TABLE IF NOT EXISTS snippets(id INTEGER PRIMARY KEY,title TEXT NOT NULL,payload BLOB NOT NULL);"
+             "CREATE TABLE IF NOT EXISTS snippets(id INTEGER PRIMARY KEY,title TEXT NOT NULL,payload TEXT NOT NULL);"
              "CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);");
     } catch (...) { sqlite3_close(db_); db_ = nullptr; throw; }
 }
@@ -141,7 +141,7 @@ long long Store::save_snippet(long long id, const std::wstring& title, const std
     if (label.empty() || content.empty()) throw std::runtime_error("Snippet encoding failed");
     Statement save(db_,id?"UPDATE snippets SET title=?1,payload=?2 WHERE id=?3":"INSERT INTO snippets(title,payload) VALUES(?1,?2)");
     sqlite3_bind_text(save.p,1,label.c_str(),-1,SQLITE_TRANSIENT);
-    sqlite3_bind_blob(save.p,2,content.data(),static_cast<int>(content.size()),SQLITE_TRANSIENT);
+    sqlite3_bind_text(save.p,2,content.c_str(),static_cast<int>(content.size()),SQLITE_TRANSIENT);
     if (id) sqlite3_bind_int64(save.p,3,id);
     save.done();
     if (id && sqlite3_changes(db_)!=1) throw std::runtime_error("Snippet no longer exists");
@@ -150,7 +150,7 @@ long long Store::save_snippet(long long id, const std::wstring& title, const std
 Bytes Store::payload(long long id, bool snippet) {
     Statement query(db_, snippet?"SELECT payload FROM snippets WHERE id=?":"SELECT payload FROM clips WHERE id=?"); sqlite3_bind_int64(query.p, 1, id);
     if (sqlite3_step(query.p) != SQLITE_ROW) return {};
-    const auto* p = static_cast<const unsigned char*>(sqlite3_column_blob(query.p, 0));
+    const auto* p = snippet?sqlite3_column_text(query.p,0):static_cast<const unsigned char*>(sqlite3_column_blob(query.p, 0));
     int size = sqlite3_column_bytes(query.p, 0);
     return p && size > 0 ? Bytes(p, p + size) : Bytes{};
 }

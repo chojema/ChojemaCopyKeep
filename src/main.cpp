@@ -187,9 +187,9 @@ public:
     }
     void create_controls() {
         theme();
-        mode=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST,0,0,0,0,popup,reinterpret_cast<HMENU>(mode_id),instance,nullptr);
+        mode=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(mode_id)),instance,nullptr);
         searchLabel=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_VISIBLE|SS_CENTERIMAGE,0,0,0,0,popup,nullptr,instance,nullptr);
-        search=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,popup,reinterpret_cast<HMENU>(search_id),instance,nullptr);
+        search=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(search_id)),instance,nullptr);
         SendMessageW(search,EM_SETLIMITTEXT,120,0);
         SetWindowSubclass(search,search_proc,1,reinterpret_cast<DWORD_PTR>(this));
         const int snippetIds[]={new_snippet_id,edit_snippet_id,save_snippet_id};

@@ -263,6 +263,8 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func runSmoke() {
         let args = CommandLine.arguments
+        if args.contains("--smoke-dark") { NSApp.appearance = NSAppearance(named: .darkAqua) }
+        if args.contains("--smoke-light") { NSApp.appearance = NSAppearance(named: .aqua) }
         guard let index = args.firstIndex(of: "--smoke-test"), args.indices.contains(index + 2) else { exit(2) }
         Localization.shared.language = args[index + 1] == "en" ? "en-US" : "ko-KR"
         let scenario = args.indices.contains(index + 3) ? args[index + 3] : "long"
@@ -389,7 +391,8 @@ final class AppController: NSObject, NSApplicationDelegate {
                 var report: [String: Any] = ["scenario": scenario, "language": Localization.shared.language,
                     "selectedRow": self.popup.table.selectedRow, "hoverRow": self.popup.hoverRow,
                     "preview": self.popup.showsPreview, "items": self.popup.items.count,
-                    "width": self.popup.panel.frame.width, "height": self.popup.panel.frame.height]
+                    "width": self.popup.panel.frame.width, "height": self.popup.panel.frame.height,
+                    "appearance": NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])?.rawValue ?? ""]
                 if scenario == "interactions" { report["interactionChecks"] = 12 }
                 if snippetScenario { report["snippetChecks"] = snippetChecks }
                 try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
