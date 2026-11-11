@@ -43,7 +43,7 @@ Storage limits are 32 MiB per item, 16,777,216 pixels per image, and 256 MiB of 
 
 ## Snippets
 
-Snippets are available in macOS 0.2.0 and the Windows source build. They are not included in existing Windows public releases.
+Snippets are available in Windows 0.2.0 and macOS 0.2.0.
 
 - Switch from `History` to `Snippets` in the popup. Search by part of a title or content. English searches are case-insensitive.
 - Use `New snippet` to enter a title and content, or `Edit` to update the selected snippet. Titles support one line up to 80 characters; content supports multiple lines up to 65,536 characters. Supplementary characters may count as two characters.
@@ -88,7 +88,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.2.0/`. Use the `v0.2.0-macos` tag for macOS 0.2.0 source. The original `v0.1.3` tag contains Windows source.
+The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.2.0/`. Use the `v0.2.0-macos` tag for macOS 0.2.0 source and `v0.2.0` for Windows 0.2.0 source.
 
 ## Project Information
 

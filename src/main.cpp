@@ -858,6 +858,12 @@ int self_test(const std::filesystem::path& root) {
     std::filesystem::remove(folder/L"history.db"); std::filesystem::remove(folder/L"history.db-journal"); std::filesystem::remove(folder);
     std::cout<<"PASS: "<<checks<<" storage, localization, and image checks\n"; return 0;
 }
+HWND snippet_fixture_dialog(HWND owner,UINT_PTR timer) {
+    HWND dialog=GetWindow(owner,GW_ENABLEDPOPUP);
+    // Dialog creation may dispatch the timer before its controls are ready.
+    if (!dialog || dialog==owner || !IsWindowVisible(dialog) || !GetDlgItem(dialog,IDC_SNIPPET_BODY)) return nullptr;
+    KillTimer(owner,timer); return dialog;
+}
 int smoke_test(const std::filesystem::path& output,bool english,const std::wstring& scenario) {
     std::filesystem::create_directories(output.parent_path());
     auto folder=output.parent_path()/(L"ui-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64()));
@@ -967,7 +973,7 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     SendMessageW(app.list,WM_KEYDOWN,VK_RETURN,0);
     check(PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)!=FALSE,"Snippet Enter retains paste command");
     auto saveFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
-        KillTimer(window,timer); HWND dialog=GetLastActivePopup(window);
+        HWND dialog=snippet_fixture_dialog(window,timer); if (!dialog) return;
         SetDlgItemTextW(dialog,IDC_SNIPPET_TITLE,L"저장된 제목 Saved title");
         SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,L"첫 줄\r\nSaved second line");
         PostMessageW(dialog,WM_COMMAND,IDOK,0);
@@ -976,7 +982,7 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     check(app.items[app.selected()].id==snippetId && app.items[app.selected()].preview==L"저장된 제목 Saved title","Editor saves selected snippet");
     auto beforeCancel=app.store.payload(snippetId,true);
     auto cancelFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
-        KillTimer(window,timer); HWND dialog=GetLastActivePopup(window);
+        HWND dialog=snippet_fixture_dialog(window,timer); if (!dialog) return;
         SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,L"Discard this edit"); PostMessageW(dialog,WM_COMMAND,IDCANCEL,0);
     };
     check(SetTimer(app.popup,90,20,cancelFixture)!=0,"Snippet cancel fixture scheduled"); app.edit_snippet(false);
@@ -988,7 +994,8 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     check(!IsWindowEnabled(app.snippetButtons[2]),"Image cannot be saved as text snippet"); select(0);
     check(IsWindowEnabled(app.snippetButtons[2]) && !IsWindowVisible(app.search),"History text exposes save as snippet");
     auto acceptFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
-        KillTimer(window,timer); PostMessageW(GetLastActivePopup(window),WM_COMMAND,IDOK,0);
+        HWND dialog=snippet_fixture_dialog(window,timer); if (!dialog) return;
+        PostMessageW(dialog,WM_COMMAND,IDOK,0);
     };
     check(SetTimer(app.popup,90,20,acceptFixture)!=0,"Save history fixture scheduled"); app.edit_snippet(true);
     check(app.snippetsMode && app.store.payload(app.editingSnippet,true)==app.store.payload(shortId),"Save history preserves full snippet body");

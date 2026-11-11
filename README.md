@@ -43,7 +43,7 @@ macOS에서도 기본 호출 단축키는 `Control + Shift + Z`입니다. 메뉴
 
 ## 상용구
 
-상용구는 macOS 0.2.0에서 사용할 수 있습니다. Windows 소스에도 포함되어 있으며, 기존 Windows 공개 배포물에는 포함되지 않습니다.
+상용구는 Windows 0.2.0과 macOS 0.2.0에서 사용할 수 있습니다.
 
 - 팝업의 `기록 / 상용구` 선택에서 상용구로 전환합니다. 검색창에 제목이나 내용의 일부를 입력하면 목록이 좁혀집니다. 영문 검색은 대소문자를 구분하지 않습니다.
 - `새 상용구`로 제목과 내용을 등록하고, 선택한 항목은 `편집`으로 수정합니다. 제목은 한 줄 80자, 내용은 여러 줄을 포함하여 65,536자까지 지원하며, 보조 문자는 두 글자로 계산될 수 있습니다.
@@ -88,7 +88,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.2.0/`에 생성됩니다. macOS 0.2.0 소스는 `v0.2.0-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
+앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.2.0/`에 생성됩니다. macOS 0.2.0 소스는 `v0.2.0-macos`, Windows 0.2.0 소스는 `v0.2.0` 태그를 사용합니다.
 
 ## 프로젝트 정보
 
