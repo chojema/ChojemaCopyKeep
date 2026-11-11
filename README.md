@@ -6,9 +6,11 @@
 
 ## 다운로드 및 실행
 
+Windows와 macOS 배포 파일은 같은 [최신 릴리스 페이지](https://github.com/chojema/ChojemaCopyKeep/releases/latest)에서 제공합니다. 사용하는 운영체제에 맞는 ZIP을 선택합니다.
+
 Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/latest)에서 Windows x64 ZIP을 다운로드한 뒤 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 실행 상태는 알림 영역 아이콘으로 확인할 수 있으며 관리자 권한은 필요하지 않습니다.
 
-macOS 13 이상에서는 [macOS 0.2.0 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.2.0-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
+macOS 13 이상에서는 [최신 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/latest)의 macOS Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
 
 ## 사용 방법
 

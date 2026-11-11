@@ -6,9 +6,11 @@ A Windows and macOS clipboard manager that saves copied text and images and lets
 
 ## Download and Run
 
+Windows and macOS packages are available on the same [latest release page](https://github.com/chojema/ChojemaCopyKeep/releases/latest). Choose the ZIP for your operating system.
+
 The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and run `ChojemaCopyKeep.exe`. The app icon appears in the notification area. Administrator privileges are not required.
 
-For macOS 13 or later, download the Universal ZIP from the [macOS 0.2.0 release](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.2.0-macos), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
+For macOS 13 or later, download the macOS Universal ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
 
 ## Usage
 
