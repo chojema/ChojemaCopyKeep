@@ -18,12 +18,14 @@ jobs:
       - name: Build and test
         shell: powershell
         run: ./tools/build.ps1 -Test
-      - name: Upload Windows executable
+      - name: Package Windows distributions
+        shell: powershell
+        run: ./tools/package-windows.ps1 -Compiler 'C:/Program Files (x86)/NSIS/makensis.exe'
+      - name: Upload Windows distributions
         uses: actions/upload-artifact@v4
         with:
           name: ChojemaCopyKeep-windows-x64
           path: |
-            build/windows/ChojemaCopyKeep.exe
-            README.md
-            README.en.md
-            docs/
+            dist/windows-distributions-v*/*.exe
+            dist/windows-distributions-v*/*.zip
+            dist/windows-distributions-v*/SHA256SUMS-windows.txt

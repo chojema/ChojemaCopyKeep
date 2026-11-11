@@ -47,7 +47,15 @@ Windows also supports the `snippets` and `snippet-editor` smoke scenarios. CTest
 
 ## Distribution
 
-Distribute the executable with both language guides. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and a signed installer are not provided.
+Distribute the executable and bilingual guides as an installer EXE and standalone ZIP. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and code signing are not provided.
+
+Packaging requires the Unicode compiler from [NSIS 3](https://nsis.sourceforge.io/Download). Supply the path to a separately prepared compiler. The packaging script does not download or install tools.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-windows.ps1 -Compiler "C:\Tools\NSIS\makensis.exe"
+```
+
+Output is written to `dist/windows-distributions-v0.2.0/`: the installer EXE, standalone ZIP, and `SHA256SUMS-windows.txt`. Use `-Executable` to select an existing executable of the same version. Existing output is never overwritten; use `-OutputDirectory` to select a new directory when repackaging. The installer provides a per-user installation, Start menu shortcuts, and uninstall registration. Data and settings remain in the existing LocalAppData location. An existing startup shortcut is updated to the installed location; uninstalling preserves a shortcut that points to another copy. Installation and uninstallation stop and request that the app be closed if a copy is running.
 
 Public files are managed through `public-files.txt` and `.gitignore`. Run the public-file audit whenever the list changes.
 ## macOS build

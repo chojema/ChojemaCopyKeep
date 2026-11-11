@@ -29,6 +29,8 @@
 !/tools/build.ps1
 !/tools/publish.ps1
 !/tools/public_audit.py
+!/tools/package-windows.ps1
+!/tools/windows-installer.nsi
 !/.github/
 /.github/*
 !/.github/workflows/

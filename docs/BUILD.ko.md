@@ -45,7 +45,15 @@ build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 
 ## 배포
 
-실행 파일과 두 언어 안내를 함께 배포합니다. 데이터베이스, 개인 설정, 로그, 내부 작업 기록과 빌드 중간 파일을 포함하지 않습니다. 자동 업데이트와 서명된 설치 프로그램은 제공하지 않습니다.
+실행 파일과 두 언어 안내를 설치형 EXE와 단독 실행형 ZIP으로 배포합니다. 데이터베이스, 개인 설정, 로그, 내부 작업 기록과 빌드 중간 파일은 포함하지 않습니다. 자동 업데이트와 코드 서명은 제공하지 않습니다.
+
+패키징에는 [NSIS 3](https://nsis.sourceforge.io/Download)의 Unicode 컴파일러가 필요합니다. 별도로 준비한 컴파일러 경로를 지정합니다. 패키징 스크립트는 도구를 내려받거나 시스템에 설치하지 않습니다.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/package-windows.ps1 -Compiler "C:\Tools\NSIS\makensis.exe"
+```
+
+`dist/windows-distributions-v0.2.0/`에 설치형 EXE, 단독 실행형 ZIP과 `SHA256SUMS-windows.txt`를 생성합니다. `-Executable`로 같은 버전의 기존 실행 파일을 지정할 수 있습니다. 기존 출력은 덮어쓰지 않으며 다시 패키징할 때는 `-OutputDirectory`로 새 폴더를 지정합니다. 설치형은 현재 사용자 계정에 설치하며 시작 메뉴와 제거 등록을 제공합니다. 기록과 설정은 기존 LocalAppData 위치에 유지합니다. 기존 자동 실행 바로 가기만 새 위치로 갱신하고, 제거 시 다른 실행본을 가리키는 바로 가기는 보존합니다. 설치 및 제거는 실행 중인 앱이 있으면 중단하고 종료를 안내합니다.
 
 공개 대상 파일은 `public-files.txt`와 `.gitignore`로 관리합니다. 목록을 변경할 때는 공개 파일 검사도 함께 실행합니다.
 

@@ -6,9 +6,20 @@ A Windows and macOS clipboard manager that saves copied text and images and lets
 
 ## Download and Run
 
-Windows and macOS packages are available on the same [latest release page](https://github.com/chojema/ChojemaCopyKeep/releases/latest). Choose the ZIP for your operating system.
+Windows and macOS packages are available on the same [latest release page](https://github.com/chojema/ChojemaCopyKeep/releases/latest).
 
-The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and run `ChojemaCopyKeep.exe`. The app icon appears in the notification area. Administrator privileges are not required.
+The app targets x64 Windows 10 and Windows 11. Choose either option; neither requires administrator privileges.
+
+| Distribution | File | Usage |
+| --- | --- | --- |
+| Installer | `ChojemaCopyKeep-windows-x64-setup-0.2.0.exe` | Install, then launch from the Start menu. Remove it through Installed apps in Windows Settings. |
+| Standalone | `ChojemaCopyKeep-windows-x64-portable-0.2.0.zip` | Extract and run `ChojemaCopyKeep.exe`. No installation or uninstall registration is required. |
+
+The default installation directory is `%LOCALAPPDATA%\Programs\ChojemaCopyKeep`. Quit the running app through its notification area menu before installing, updating, or uninstalling. Also quit the existing app before launching a new standalone version. Only one copy runs at a time; a new executable exits if another copy is already running.
+
+Both distributions use `%LOCALAPPDATA%\ChojemaCopyKeep\history.db` for history, snippets, and settings, preserving data when switching between them. The standalone version also stores data there, rather than beside its executable. Uninstalling or deleting the standalone folder preserves this data. If login startup is already enabled, installation updates its shortcut to the installed location. Installation does not enable login startup by default. Uninstallation removes the startup shortcut only if it points to that installed copy.
+
+`SHA256SUMS-windows.txt` lists SHA-256 checksums for both Windows packages. The original Windows ZIP and checksum remain available. The Windows executable and installer are unsigned. The app icon appears in the notification area.
 
 For macOS 13 or later, download the macOS Universal ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
 

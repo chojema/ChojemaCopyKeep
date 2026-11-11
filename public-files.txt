@@ -20,6 +20,8 @@ docs/PRIVACY.en.md
 tools/build.ps1
 tools/publish.ps1
 tools/public_audit.py
+tools/package-windows.ps1
+tools/windows-installer.nsi
 .github/workflows/windows.yml
 macos/Package.swift
 macos/Info.plist
