@@ -28,9 +28,11 @@ public:
     Store& operator=(const Store&) = delete;
     long long put(int kind, const Bytes& data, const std::wstring& preview, int width = 0, int height = 0);
     std::vector<Item> list();
-    Bytes payload(long long id);
+    std::vector<Item> snippets(const std::wstring& query = L"");
+    long long save_snippet(long long id, const std::wstring& title, const std::wstring& body);
+    Bytes payload(long long id, bool snippet = false);
     void use(long long id, bool promote);
-    void erase(long long id);
+    void erase(long long id, bool snippet = false);
     void clear();
     std::string setting(const char* key, const char* fallback);
     void setting(const char* key, const std::string& value);

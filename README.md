@@ -8,7 +8,7 @@
 
 Windows 10과 Windows 11의 x64 환경을 대상으로 합니다. [최신 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/latest)에서 Windows x64 ZIP을 다운로드한 뒤 압축을 풀고 `ChojemaCopyKeep.exe`를 실행합니다. 실행 상태는 알림 영역 아이콘으로 확인할 수 있으며 관리자 권한은 필요하지 않습니다.
 
-macOS 13 이상에서는 [macOS 0.1.4 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.4-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
+macOS 13 이상에서는 [macOS 0.2.0 릴리스](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.2.0-macos)의 Universal ZIP을 풀고 `Chojema CopyKeep.app`을 응용 프로그램 폴더로 옮겨 실행합니다. Apple Silicon과 Intel 실행 파일을 함께 포함합니다. 실행 상태와 설정은 메뉴 막대의 클립보드 아이콘에서 확인합니다. 이 배포물은 임시 서명(ad hoc)을 사용하며 Developer ID 서명과 Apple 공증을 포함하지 않습니다. macOS가 실행을 차단하면 시스템 설정 > 개인정보 보호 및 보안에서 해당 앱의 실행을 허용해야 할 수 있습니다.
 
 ## 사용 방법
 
@@ -41,6 +41,18 @@ macOS에서도 기본 호출 단축키는 `Control + Shift + Z`입니다. 메뉴
 
 저장 한도는 항목당 32 MiB, 이미지당 16,777,216픽셀, 저장된 원문 합계 256 MiB입니다. 데이터베이스 파일 크기와 프로세스 메모리 사용량은 별도로 달라질 수 있습니다.
 
+## 상용구
+
+상용구는 macOS 0.2.0에서 사용할 수 있습니다. Windows 소스에도 포함되어 있으며, 기존 Windows 공개 배포물에는 포함되지 않습니다.
+
+- 팝업의 `기록 / 상용구` 선택에서 상용구로 전환합니다. 검색창에 제목이나 내용의 일부를 입력하면 목록이 좁혀집니다. 영문 검색은 대소문자를 구분하지 않습니다.
+- `새 상용구`로 제목과 내용을 등록하고, 선택한 항목은 `편집`으로 수정합니다. 제목은 한 줄 80자, 내용은 여러 줄을 포함하여 65,536자까지 지원하며, 보조 문자는 두 글자로 계산될 수 있습니다.
+- 텍스트 기록을 선택한 뒤 `상용구로 저장`하면 원문을 편집해 별도로 보관할 수 있습니다. 이미지와 한도를 초과한 텍스트는 상용구로 저장할 수 없습니다.
+- 검색창에서 아래쪽 방향키로 목록에 이동하고, Enter 또는 항목 클릭으로 원래 앱에 붙여넣습니다. 검색어를 지우면 모든 상용구가 다시 표시됩니다.
+- 상용구 삭제는 Delete 키 또는 삭제 버튼으로 실행하며 확인을 거칩니다. 기록 보관 한도와 `기록`의 전체 삭제는 상용구에 영향을 주지 않습니다.
+
+상용구는 같은 로컬 데이터베이스에 저장하며 앱 자체 암호화는 적용하지 않습니다. 약어 입력에 따른 자동 확장, 변수와 스크립트 실행은 제공하지 않습니다. macOS에서는 팝업의 `복사 기록 / 상용구` 선택에서 전환하며, Delete 대신 지우기(⌫) 키도 사용할 수 있습니다.
+
 ## 데이터 저장 및 개인정보
 
 기록과 설정은 `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`에 저장됩니다. 클라우드 동기화, 계정 로그인, 원격 전송, 사용량 수집 기능은 없습니다. 데이터베이스에 앱 자체 암호화는 적용되지 않습니다.
@@ -56,7 +68,7 @@ macOS의 저장 위치는 `~/Library/Application Support/ChojemaCopyKeep/history
 - 붙여넣기는 원래 앱에 `Ctrl + V` 입력을 전송하는 방식입니다. 대상 앱의 입력 제한에 따라 동작하지 않을 수 있으며, 관리자 권한 앱과 보안 입력 화면에서는 제한될 수 있습니다.
 - 앱별 붙여넣기 호환성과 장시간 실행 동작은 추가 검증이 필요합니다.
 - macOS는 원래 앱으로 전환한 뒤 `Command + V` 입력을 전송합니다. 보안 입력이나 대상 앱의 제한에 따라 동작하지 않을 수 있으며 입력 전송이 내용 수용을 보장하지는 않습니다.
-- macOS 0.1.4는 Apple Silicon에서 합성 데이터 검사와 화면 렌더링을 검증했습니다. Intel에서는 빌드와 실행 파일 구성을 확인했으며 실제 Intel 하드웨어, 외부 앱별 붙여넣기와 로그인 후 자동 실행은 미검증입니다.
+- macOS 0.2.0는 Apple Silicon에서 합성 데이터 검사와 화면 렌더링을 검증했습니다. Intel에서는 빌드와 실행 파일 구성을 확인했으며 실제 Intel 하드웨어, 외부 앱별 붙여넣기와 로그인 후 자동 실행은 미검증입니다.
 
 ## 소스 빌드
 
@@ -76,7 +88,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.1.4/`에 생성됩니다. macOS 0.1.4 소스는 `v0.1.4-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
+앱은 `build/macos/Chojema CopyKeep.app`, 배포 ZIP은 `dist/macos-v0.2.0/`에 생성됩니다. macOS 0.2.0 소스는 `v0.2.0-macos` 태그를 사용합니다. 기존 `v0.1.3` 태그는 Windows 소스입니다.
 
 ## 프로젝트 정보
 

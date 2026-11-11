@@ -45,3 +45,17 @@
 "sampleShort" = "A sentence to use again";
 "sampleLong" = "Keep copied text and images, choose an item with a keyboard shortcut, and paste it into the original insertion point. Long content appears in the preview on the right.";
 "sampleMultiline" = "Project notes\nFirst: review clipboard history\nSecond: select an item and paste\nThird: keep the items you need";
+"snippets" = "Snippets";
+"source" = "History / Snippets";
+"searchSnippets" = "Search snippets";
+"newSnippet" = "New snippet";
+"editSnippet" = "Edit";
+"saveSnippet" = "Save as snippet";
+"snippetTitle" = "Title";
+"snippetBody" = "Content";
+"snippetHelp" = "Title: 80 characters · Content: 65,536 · Separate from history";
+"invalidSnippet" = "Enter a nonblank title and content. Use a single-line title up to 80 characters and content up to 65,536 characters. Supplementary characters may count as two.";
+"emptySnippets" = "No snippets yet.\nCreate a snippet or save one from text history.";
+"noSnippets" = "No matching snippets.";
+"deleteSnippet" = "Delete the selected snippet?";
+"deleteSnippetBody" = "This cannot be undone. Clipboard history is preserved.";

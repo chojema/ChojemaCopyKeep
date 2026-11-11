@@ -43,6 +43,8 @@ Append `short`, `long`, `multiline`, `hover`, `image`, `empty`, `many`, `setting
 
 Use `--data-dir` during normal execution to select a separate development storage folder. It can contain real copied content and must remain private.
 
+Windows also supports the `snippets` and `snippet-editor` smoke scenarios. CTest includes both languages for the snippet list and editor. Checks cover snippet storage, search, editing, cancellation, restart persistence, and separation from history deletion and retention limits.
+
 ## Distribution
 
 Distribute the executable with both language guides. Exclude databases, personal settings, logs, internal work records, and intermediate build files. Automatic updates and a signed installer are not provided.
@@ -70,4 +72,6 @@ open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copyke
 
 Scenarios: `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`. A JSON file alongside each PNG records selection and preview state. Normal launches accept `--data-dir` for an alternate development data directory.
 
-`tools/package-macos.sh` packages the Universal app and bilingual guides, and creates `SHA256SUMS-macos.txt`. Default builds use ad hoc signing, with no Developer ID signature or Apple notarization. Existing Windows releases and tags are preserved. macOS source uses the `v0.1.4-macos` tag.
+`tools/package-macos.sh` packages the Universal app and bilingual guides, and creates `SHA256SUMS-macos.txt`. Default builds use ad hoc signing, with no Developer ID signature or Apple notarization. Existing Windows releases and tags are preserved. macOS source uses the `v0.2.0-macos` tag.
+
+The macOS snippet smoke scenarios are `snippets`, `snippet-editor`, and `snippet-interactions`. They use temporary databases to check creation, editing, cancellation, search, keyboard navigation, paste commands, separation from history deletion, and restart persistence. They do not change the real clipboard or user settings.

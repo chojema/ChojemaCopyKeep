@@ -20,6 +20,7 @@ using namespace copykeep;
 namespace {
 constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
+constexpr int mode_id=305, search_id=306, new_snippet_id=307, edit_snippet_id=308, save_snippet_id=309;
 constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, hover_delay = 250;
 const COLORREF accent = RGB(23,107,99);
 HINSTANCE instance;
@@ -89,12 +90,20 @@ Bytes clipboard_bytes(UINT format) {
 int integer(const std::string& s, int fallback) {
     try { size_t end=0; int result=std::stoi(s,&end); return end==s.size()?result:fallback; } catch (...) { return fallback; }
 }
+std::wstring window_text(HWND window) {
+    std::wstring value(GetWindowTextLengthW(window)+1,L'\0');
+    value.resize(GetWindowTextW(window,value.data(),static_cast<int>(value.size()))); return value;
+}
 class App {
 public:
     Store store;
     bool english=false, promote=true, paused=false, testing=false, settingsOpen=false;
     UINT modifiers=MOD_CONTROL|MOD_SHIFT, key='Z';
     HWND host=nullptr, popup=nullptr, list=nullptr, preview=nullptr, buttons[4]{}, target=nullptr;
+    HWND mode=nullptr, search=nullptr, searchLabel=nullptr, snippetButtons[3]{};
+    bool snippetsMode=false, pendingSnippet=false;
+    long long editingSnippet=0;
+    std::wstring draftTitle, draftBody;
     HFONT font=nullptr, smallFont=nullptr, titleFont=nullptr;
     HBITMAP previewBitmap=nullptr;
     ui::Palette colors;
@@ -167,6 +176,8 @@ public:
         if (list) { SendMessageW(list,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE); SendMessageW(list,LB_SETITEMHEIGHT,0,scale(36)); }
         if (preview) SendMessageW(preview,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
         for (auto button:buttons) if (button) SendMessageW(button,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
+        for (auto control:{mode,search,searchLabel,snippetButtons[0],snippetButtons[1],snippetButtons[2]})
+            if (control) SendMessageW(control,WM_SETFONT,reinterpret_cast<WPARAM>(font),TRUE);
     }
     void theme(bool highContrast=false) {
         colors=ui::Palette{}; colors.system(highContrast);
@@ -176,6 +187,16 @@ public:
     }
     void create_controls() {
         theme();
+        mode=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST,0,0,0,0,popup,reinterpret_cast<HMENU>(mode_id),instance,nullptr);
+        searchLabel=CreateWindowExW(0,L"STATIC",L"",WS_CHILD|WS_VISIBLE|SS_CENTERIMAGE,0,0,0,0,popup,nullptr,instance,nullptr);
+        search=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",WS_CHILD|WS_TABSTOP|ES_AUTOHSCROLL,0,0,0,0,popup,reinterpret_cast<HMENU>(search_id),instance,nullptr);
+        SendMessageW(search,EM_SETLIMITTEXT,120,0);
+        SetWindowSubclass(search,search_proc,1,reinterpret_cast<DWORD_PTR>(this));
+        const int snippetIds[]={new_snippet_id,edit_snippet_id,save_snippet_id};
+        for (int i=0;i<3;++i) {
+            snippetButtons[i]=CreateWindowExW(0,L"BUTTON",L"",WS_CHILD|WS_TABSTOP|BS_OWNERDRAW,0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(snippetIds[i])),instance,nullptr);
+            SetWindowSubclass(snippetButtons[i],button_proc,1,reinterpret_cast<DWORD_PTR>(this));
+        }
         list=CreateWindowExW(0,L"LISTBOX",L"",WS_CHILD|WS_VISIBLE|WS_VSCROLL|WS_TABSTOP|LBS_NOTIFY|LBS_OWNERDRAWFIXED|LBS_HASSTRINGS|LBS_NOINTEGRALHEIGHT,
             0,0,0,0,popup,reinterpret_cast<HMENU>(static_cast<INT_PTR>(list_id)),instance,nullptr);
         SetWindowSubclass(list,list_proc,1,reinterpret_cast<DWORD_PTR>(this));
@@ -190,6 +211,14 @@ public:
     void labels() {
         const UINT ids[]={IDS_SETTINGS,IDS_DELETE,IDS_CLEAR,IDS_CLOSE};
         for (int i=0;i<4;++i) if (buttons[i]) SetWindowTextW(buttons[i],t(ids[i]).c_str());
+        if (mode) {
+            SendMessageW(mode,CB_RESETCONTENT,0,0);
+            for (UINT id:{IDS_HISTORY,IDS_SNIPPETS}) SendMessageW(mode,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(t(id).c_str()));
+            SendMessageW(mode,CB_SETCURSEL,snippetsMode?1:0,0);
+            SetWindowTextW(searchLabel,t(IDS_SEARCH).c_str());
+            const UINT snippetIds[]={IDS_NEW_SNIPPET,IDS_EDIT_SNIPPET,IDS_SAVE_SNIPPET};
+            for (int i=0;i<3;++i) SetWindowTextW(snippetButtons[i],t(snippetIds[i]).c_str());
+        }
         if (list) SetWindowTextW(list,t(IDS_APP).c_str());
         if (preview) SetWindowTextW(preview,L"");
         if (popup) InvalidateRect(popup,nullptr,TRUE);
@@ -205,7 +234,7 @@ public:
         POINT anchor=popupAnchorValid?popupAnchor:POINT{window.left,window.top};
         MONITORINFO monitor{sizeof(monitor)}; GetMonitorInfoW(MonitorFromPoint(anchor,MONITOR_DEFAULTTONEAREST),&monitor);
         int width=std::min<int>(scale(previewExpanded?740:440),monitor.rcWork.right-monitor.rcWork.left);
-        int height=std::min<int>(scale(430),monitor.rcWork.bottom-monitor.rcWork.top);
+        int height=std::min<int>(scale(510),monitor.rcWork.bottom-monitor.rcWork.top);
         int x=std::clamp<int>(anchor.x,monitor.rcWork.left,monitor.rcWork.right-width);
         int y=std::clamp<int>(anchor.y,monitor.rcWork.top,monitor.rcWork.bottom-height);
         SetWindowPos(popup,nullptr,x,y,width,height,SWP_NOZORDER|SWP_NOACTIVATE);
@@ -213,7 +242,13 @@ public:
     }
     void layout() {
         if (!list) return;
-        RECT rc{}; GetClientRect(popup,&rc); int margin=scale(12), gap=scale(12), top=scale(82), bottom=scale(92);
+        RECT rc{}; GetClientRect(popup,&rc); int margin=scale(12), gap=scale(12), top=scale(156), bottom=scale(92);
+        MoveWindow(mode,margin,scale(80),scale(120),scale(120),TRUE);
+        MoveWindow(searchLabel,margin+scale(130),scale(80),scale(54),scale(26),TRUE);
+        MoveWindow(search,margin+scale(184),scale(80),std::max<int>(scale(40),rc.right-2*margin-scale(184)),scale(26),TRUE);
+        MoveWindow(snippetButtons[0],margin,scale(116),scale(126),scale(30),TRUE);
+        MoveWindow(snippetButtons[1],margin+scale(134),scale(116),scale(104),scale(30),TRUE);
+        MoveWindow(snippetButtons[2],margin,scale(116),scale(178),scale(30),TRUE);
         int available=std::max<int>(scale(120),rc.right-2*margin-(previewExpanded?gap:0));
         int left=previewExpanded?std::min<int>(compact_list_width(),available*2/3):available, right=available-left;
         int height=std::max<int>(scale(80),rc.bottom-top-bottom);
@@ -236,24 +271,37 @@ public:
     }
     int selected() const { int i=static_cast<int>(SendMessageW(list,LB_GETCURSEL,0,0)); return i>=0 && i<static_cast<int>(items.size())?i:-1; }
     void refresh(int selection=0) {
-        if (popup) KillTimer(popup,hover_timer); previewRow=-1;
-        items=store.list(); SendMessageW(list,WM_SETREDRAW,FALSE,0); SendMessageW(list,LB_RESETCONTENT,0,0);
+        if (popup) KillTimer(popup,hover_timer); previewRow=-1; hoveredRow=-1;
+        items=snippetsMode?store.snippets(window_text(search)):store.list(); SendMessageW(list,WM_SETREDRAW,FALSE,0); SendMessageW(list,LB_RESETCONTENT,0,0);
         for (const auto& item:items) {
-            auto label=item.kind==0?t(IDS_TEXT)+L": "+item.preview:t(IDS_IMAGE)+L" "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height);
+            auto label=item.kind==0?t(snippetsMode?IDS_SNIPPETS:IDS_TEXT)+L": "+item.preview:t(IDS_IMAGE)+L" "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height);
             SendMessageW(list,LB_ADDSTRING,0,reinterpret_cast<LPARAM>(label.c_str()));
         }
         if (!items.empty()) SendMessageW(list,LB_SETCURSEL,std::clamp(selection,0,static_cast<int>(items.size())-1),0);
         SendMessageW(list,WM_SETREDRAW,TRUE,0); InvalidateRect(list,nullptr,TRUE);
-        EnableWindow(buttons[1],!items.empty()); EnableWindow(buttons[2],!items.empty()); update_preview();
+        EnableWindow(buttons[1],!items.empty()); EnableWindow(buttons[2],!snippetsMode && !items.empty());
+        ShowWindow(search,snippetsMode?SW_SHOW:SW_HIDE); ShowWindow(searchLabel,snippetsMode?SW_SHOW:SW_HIDE);
+        ShowWindow(snippetButtons[0],snippetsMode?SW_SHOW:SW_HIDE); ShowWindow(snippetButtons[1],snippetsMode?SW_SHOW:SW_HIDE);
+        ShowWindow(snippetButtons[2],snippetsMode?SW_HIDE:SW_SHOW); update_preview();
+    }
+    void selection_actions() {
+        int index=selected();
+        EnableWindow(snippetButtons[1],snippetsMode && index>=0);
+        EnableWindow(snippetButtons[2],!snippetsMode && index>=0 && items[index].kind==0);
+    }
+    void switch_mode() {
+        snippetsMode=SendMessageW(mode,CB_GETCURSEL,0,0)==1;
+        refresh(); SetFocus(snippetsMode?search:list);
     }
     void update_preview() {
+        selection_actions();
         if (previewBitmap) { DeleteObject(previewBitmap); previewBitmap=nullptr; }
         int index=previewRow>=0 && previewRow<static_cast<int>(items.size())?previewRow:selected();
         Bytes data; std::wstring value;
         if (index>=0) {
-            const auto& item=items[index]; data=store.payload(item.id);
+            const auto& item=items[index]; data=store.payload(item.id,snippetsMode);
             if (!item.kind) value=wide(std::string(data.begin(),data.end()));
-            previewExpanded=item.kind || text_needs_preview(value);
+            previewExpanded=snippetsMode || item.kind || text_needs_preview(value);
         } else previewExpanded=false;
         fit_popup();
         SetWindowTextW(preview,L""); ShowWindow(preview,SW_HIDE);
@@ -274,6 +322,7 @@ public:
         previewRow=row; update_preview();
     }
     void show() {
+        if (settingsOpen || pendingId) return;
         if (IsWindowVisible(popup)) { ShowWindow(popup,SW_HIDE); return; }
         target=GetForegroundWindow();
         if (target==popup || target==host) target=nullptr;
@@ -325,12 +374,12 @@ public:
                 store.put(0,Bytes(encoded.begin(),encoded.end()),label);
             }
         }
-        if (IsWindowVisible(popup) && !settingsOpen) refresh();
+        if (IsWindowVisible(popup) && !settingsOpen && !snippetsMode) refresh();
     }
     void begin_paste() {
         int index=selected(); if (index<0 || pendingId) return;
         if (!target || !IsWindow(target)) { notify(IDS_NO_TARGET); return; }
-        auto item=items[index]; auto data=store.payload(item.id); if (data.empty()) return;
+        auto item=items[index]; auto data=store.payload(item.id,snippetsMode); if (data.empty()) return;
         Bytes dib; std::wstring value;
         if (item.kind) dib=image_dib(data); else value=wide(std::string(data.begin(),data.end()));
         if (!OpenClipboard(host)) { notify(IDS_PASTE_ERROR); return; }
@@ -341,7 +390,7 @@ public:
         } else if (success) success=set_clipboard_bytes(CF_UNICODETEXT,value.c_str(),(value.size()+1)*sizeof(wchar_t));
         CloseClipboard(); lastSequence=GetClipboardSequenceNumber();
         if (!success) { notify(IDS_PASTE_ERROR); return; }
-        pendingId=item.id; pasteAttempts=0; ShowWindow(popup,SW_HIDE);
+        pendingId=item.id; pendingSnippet=snippetsMode; pasteAttempts=0; ShowWindow(popup,SW_HIDE);
         SetForegroundWindow(target); SetTimer(host,paste_timer,60,nullptr);
     }
     void finish_paste() {
@@ -355,14 +404,93 @@ public:
         input[3].ki.wVk=VK_CONTROL; input[3].ki.dwFlags=KEYEVENTF_KEYUP;
         UINT sent=SendInput(4,input,sizeof(INPUT)); KillTimer(host,paste_timer);
         auto used=pendingId; pendingId=0;
-        if (sent==4) store.use(used,promote); else {
+        if (sent==4) { if (!pendingSnippet) store.use(used,promote); } else {
             INPUT release{}; release.type=INPUT_KEYBOARD; release.ki.wVk=VK_CONTROL; release.ki.dwFlags=KEYEVENTF_KEYUP; SendInput(1,&release,sizeof(INPUT));
             notify(IDS_PASTE_ERROR);
         }
     }
-    void remove_selected() { int index=selected(); if (index>=0) { store.erase(items[index].id); refresh(index); SetFocus(list); } }
+    void remove_selected() {
+        int index=selected(); if (index<0) return;
+        if (snippetsMode) {
+            settingsOpen=true;
+            int result=MessageBoxW(popup,t(IDS_SNIPPET_DELETE_CONFIRM).c_str(),L"Chojema CopyKeep",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2);
+            settingsOpen=false; if (result!=IDYES) return;
+        }
+        store.erase(items[index].id,snippetsMode); refresh(index); SetFocus(list);
+    }
     void clear_all() {
+        if (snippetsMode) return;
         if (MessageBoxW(popup,t(IDS_CLEAR_CONFIRM).c_str(),L"Chojema CopyKeep",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2)==IDYES) { store.clear(); refresh(); }
+    }
+    void edit_snippet(bool create) {
+        int index=selected();
+        if ((!create || !snippetsMode) && (index<0 || items[index].kind!=0)) return;
+        editingSnippet=create?0:items[index].id; draftTitle.clear(); draftBody.clear();
+        if (!create || !snippetsMode) {
+            draftTitle=items[index].preview.substr(0,80);
+            auto bytes=store.payload(items[index].id,snippetsMode); draftBody=wide(std::string(bytes.begin(),bytes.end()));
+        }
+        if (draftBody.size()>65536) {
+            settingsOpen=true;
+            MessageBoxW(popup,t(IDS_BAD_SNIPPET).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONINFORMATION);
+            settingsOpen=false; draftTitle.clear(); draftBody.clear(); return;
+        }
+        settingsOpen=true;
+        INT_PTR result=DialogBoxParamW(instance,MAKEINTRESOURCEW(IDD_SNIPPET),popup,snippet_proc,reinterpret_cast<LPARAM>(this));
+        settingsOpen=false; draftTitle.clear(); draftBody.clear();
+        if (result==IDOK) {
+            snippetsMode=true; SendMessageW(mode,CB_SETCURSEL,1,0); SetWindowTextW(search,L"");
+            refresh();
+            for (int i=0;i<static_cast<int>(items.size());++i) if (items[i].id==editingSnippet) {
+                SendMessageW(list,LB_SETCURSEL,i,0); break;
+            }
+            update_preview();
+        }
+        SetFocus(list);
+    }
+    static INT_PTR CALLBACK snippet_proc(HWND dialog,UINT message,WPARAM w,LPARAM l) {
+        auto* self=reinterpret_cast<App*>(GetWindowLongPtrW(dialog,DWLP_USER));
+        if (message==WM_INITDIALOG) {
+            self=reinterpret_cast<App*>(l); SetWindowLongPtrW(dialog,DWLP_USER,reinterpret_cast<LONG_PTR>(self));
+            SetWindowTextW(dialog,self->t(self->editingSnippet?IDS_EDIT_SNIPPET:IDS_NEW_SNIPPET).c_str());
+            const std::pair<int,UINT> labels[]={{IDC_SNIPPET_TITLE_LABEL,IDS_SNIPPET_TITLE},{IDC_SNIPPET_BODY_LABEL,IDS_SNIPPET_BODY},{IDC_SNIPPET_HELP,IDS_SNIPPET_HELP},{IDOK,IDS_SAVE},{IDCANCEL,IDS_CANCEL}};
+            for (auto [control,id]:labels) SetDlgItemTextW(dialog,control,self->t(id).c_str());
+            EnumChildWindows(dialog,[](HWND child,LPARAM context)->BOOL {
+                auto* app=reinterpret_cast<App*>(context); SendMessageW(child,WM_SETFONT,reinterpret_cast<WPARAM>(app->font),TRUE);
+                SetWindowTheme(child,L"Explorer",nullptr); return TRUE;
+            },reinterpret_cast<LPARAM>(self));
+            for (int id:{IDOK,IDCANCEL}) SetWindowSubclass(GetDlgItem(dialog,id),button_proc,1,reinterpret_cast<DWORD_PTR>(self));
+            SendMessageW(dialog,DM_SETDEFID,IDOK,0);
+            SendDlgItemMessageW(dialog,IDC_SNIPPET_TITLE,EM_SETLIMITTEXT,80,0);
+            SendDlgItemMessageW(dialog,IDC_SNIPPET_BODY,EM_SETLIMITTEXT,65536,0);
+            SetDlgItemTextW(dialog,IDC_SNIPPET_TITLE,self->draftTitle.c_str()); SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,self->draftBody.c_str());
+            return TRUE;
+        }
+        if (!self) return FALSE;
+        try {
+            if (message==WM_PAINT || message==WM_PRINTCLIENT) {
+                PAINTSTRUCT paint{}; HDC dc=message==WM_PAINT?BeginPaint(dialog,&paint):reinterpret_cast<HDC>(w);
+                RECT rect{}; GetClientRect(dialog,&rect); ui::fill(dc,rect,self->colors.background);
+                if (message==WM_PAINT) EndPaint(dialog,&paint); return TRUE;
+            }
+            if (message==WM_CTLCOLORDLG || message==WM_CTLCOLORSTATIC) {
+                HDC dc=reinterpret_cast<HDC>(w); SetTextColor(dc,self->colors.ink); SetBkColor(dc,self->colors.background);
+                return reinterpret_cast<INT_PTR>(self->backgroundBrush);
+            }
+            if (message==WM_CTLCOLOREDIT) {
+                HDC dc=reinterpret_cast<HDC>(w); SetTextColor(dc,self->colors.ink); SetBkColor(dc,self->colors.surface);
+                return reinterpret_cast<INT_PTR>(self->surfaceBrush);
+            }
+            if (message==WM_DRAWITEM) { self->draw_button(reinterpret_cast<DRAWITEMSTRUCT*>(l)); return TRUE; }
+            if (message==WM_CLOSE || (message==WM_COMMAND && LOWORD(w)==IDCANCEL)) { EndDialog(dialog,IDCANCEL); return TRUE; }
+            if (message==WM_COMMAND && LOWORD(w)==IDOK) {
+                auto title=window_text(GetDlgItem(dialog,IDC_SNIPPET_TITLE)), body=window_text(GetDlgItem(dialog,IDC_SNIPPET_BODY));
+                self->editingSnippet=self->store.save_snippet(self->editingSnippet,title,body);
+                EndDialog(dialog,IDOK); return TRUE;
+            }
+        } catch (const std::invalid_argument&) { MessageBoxW(dialog,self->t(IDS_BAD_SNIPPET).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONINFORMATION); return TRUE; }
+        catch (...) { MessageBoxW(dialog,self->t(IDS_ERROR).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONERROR); return TRUE; }
+        return FALSE;
     }
     void dialog_labels(HWND dialog) {
         SetWindowTextW(dialog,t(IDS_SETTINGS).c_str());
@@ -463,7 +591,7 @@ public:
         RECT title{scale(60),scale(17),rc.right-scale(60),scale(39)}; DrawTextW(dc,L"Chojema CopyKeep",-1,&title,DT_LEFT|DT_SINGLELINE|DT_NOPREFIX);
         SelectObject(dc,smallFont); SetTextColor(dc,colors.muted);
         RECT subtitle{scale(60),scale(40),rc.right-scale(64),scale(59)};
-        auto sub=t(IDS_SUBTITLE)+L"  /  "+std::to_wstring(items.size()); DrawTextW(dc,sub.c_str(),-1,&subtitle,DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
+        auto sub=t(snippetsMode?IDS_SNIPPETS:IDS_SUBTITLE)+L"  /  "+std::to_wstring(items.size()); DrawTextW(dc,sub.c_str(),-1,&subtitle,DT_SINGLELINE|DT_END_ELLIPSIS|DT_NOPREFIX);
         RECT separator{scale(18),scale(69),rc.right-scale(18),scale(70)}; ui::fill(dc,separator,colors.line);
         RECT footer{scale(18),rc.bottom-scale(85),rc.right-scale(18),rc.bottom-scale(84)}; ui::fill(dc,footer,colors.line);
         auto hint=[&](int x,int width,const wchar_t* key,UINT label) {
@@ -614,6 +742,11 @@ public:
             if (message==WM_COMMAND) {
                 switch (LOWORD(w)) {
                     case list_id: if (HIWORD(w)==LBN_SELCHANGE) { KillTimer(window,hover_timer); self->previewRow=-1; self->update_preview(); } break;
+                    case mode_id: if (HIWORD(w)==CBN_SELCHANGE) self->switch_mode(); break;
+                    case search_id: if (HIWORD(w)==EN_CHANGE && self->snippetsMode) self->refresh(); break;
+                    case new_snippet_id: self->edit_snippet(true); break;
+                    case edit_snippet_id: self->edit_snippet(false); break;
+                    case save_snippet_id: self->edit_snippet(true); break;
                     case settings_id: self->settings(); break;
                     case delete_id: self->remove_selected(); break;
                     case clear_id: self->clear_all(); break;
@@ -622,6 +755,11 @@ public:
             }
         } catch (...) { self->notify(IDS_ERROR); }
         return DefWindowProcW(window,message,w,l);
+    }
+    static LRESULT CALLBACK search_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR ref) {
+        auto* self=reinterpret_cast<App*>(ref);
+        if (message==WM_KEYDOWN && w==VK_DOWN) { SetFocus(self->list); return 0; }
+        return DefSubclassProc(window,message,w,l);
     }
     static LRESULT CALLBACK list_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR ref) {
         auto* self=reinterpret_cast<App*>(ref);
@@ -636,7 +774,8 @@ public:
             ui::symbol(dc,glyph,ui::Symbol::Clipboard,self->colors.muted);
             bounds.top=badge.bottom+self->scale(16); bounds.left+=self->scale(16); bounds.right-=self->scale(16);
             SelectObject(dc,self->font); SetTextColor(dc,self->colors.muted); SetBkMode(dc,TRANSPARENT);
-            auto hint=self->t(IDS_EMPTY); DrawTextW(dc,hint.c_str(),-1,&bounds,DT_WORDBREAK|DT_CENTER|DT_NOPREFIX);
+            auto hint=self->t(self->snippetsMode?(window_text(self->search).empty()?IDS_SNIPPET_EMPTY:IDS_NO_RESULTS):IDS_EMPTY);
+            DrawTextW(dc,hint.c_str(),-1,&bounds,DT_WORDBREAK|DT_CENTER|DT_NOPREFIX);
             RestoreDC(dc,saved); if (message==WM_PAINT) ReleaseDC(window,dc); return result;
         }
         if (message==WM_MOUSEMOVE) {
@@ -671,7 +810,7 @@ int self_test(const std::filesystem::path& root) {
     int checks=0;
     auto check=[&](bool ok,const char* message){require(ok,message); ++checks;};
     auto a=utf8(L"한글 text\r\n두 번째 줄"); Bytes bytes(a.begin(),a.end());
-    long long first=0,second=0;
+    long long first=0,second=0,snippet=0;
     {
         Store store(folder); first=store.put(0,bytes,L"한글 text");
         std::string b="second"; second=store.put(0,Bytes(b.begin(),b.end()),L"second");
@@ -681,28 +820,47 @@ int self_test(const std::filesystem::path& root) {
         check(store.put(0,bytes,L"same")==first && store.list().size()==2,"Duplicate merging");
         check(store.payload(first)==bytes,"Unicode payload round trip");
         store.setting("language",std::string("en")); check(store.setting("language","ko")=="en","Language setting");
+        snippet=store.save_snippet(0,L"인사 Greeting",L"안녕하세요.\r\n두 번째 줄");
+        auto snippetBytes=utf8(L"안녕하세요.\r\n두 번째 줄");
+        check(store.snippets().size()==1 && store.snippets()[0].preview==L"인사 Greeting","Snippet title");
+        check(store.payload(snippet,true)==Bytes(snippetBytes.begin(),snippetBytes.end()),"Snippet multiline payload");
+        check(store.snippets(L"gReEt").size()==1 && store.snippets(L"두 번째").size()==1,"Snippet title and body search");
+        check(store.snippets(L"%").empty() && store.snippets(L"없는 내용").empty(),"Snippet literal search");
+        check(store.save_snippet(snippet,L"수정된 제목",L"수정된 내용")==snippet && store.snippets().size()==1,"Snippet update keeps identity");
+        bool invalid=false; try { store.save_snippet(0,L" \t",L"body"); } catch (...) { invalid=true; }
+        check(invalid && store.snippets().size()==1,"Reject blank snippet title");
+        invalid=false; try { store.save_snippet(snippet,L"title",L""); } catch (...) { invalid=true; }
+        check(invalid && store.snippets()[0].preview==L"수정된 제목","Invalid edit preserves original");
+        invalid=false; try { store.save_snippet(0,L"title",std::wstring(65537,L'x')); } catch (...) { invalid=true; }
+        check(invalid,"Reject oversized snippet body");
+        invalid=false; try { store.save_snippet(999999,L"title",L"body"); } catch (...) { invalid=true; }
+        check(invalid,"Reject missing snippet update");
         auto image=test_image(); auto decoded=from_png(image.png); check(decoded.width==320 && decoded.height==180,"PNG dimensions");
         auto dib=image_dib(image.png); auto header=reinterpret_cast<const BITMAPV5HEADER*>(dib.data());
         check(header->bV5Width==320 && header->bV5Height==-180 && dib.size()==sizeof(BITMAPV5HEADER)+320*180*4,"Image paste format");
         auto imageId=store.put(1,image.png,L"",image.width,image.height); check(store.payload(imageId)==image.png,"Image persistence");
         HBITMAP preview=thumbnail(image.png,120,80); check(preview!=nullptr,"Image preview"); if (preview) DeleteObject(preview);
-        for (UINT id=IDS_APP;id<=IDS_HOTKEY_EMPTY;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
+        for (UINT id=IDS_APP;id<=IDS_SNIPPET_DELETE_CONFIRM;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
     }
     {
         Store store(folder); check(store.setting("language","ko")=="en" && store.list().size()==3,"Restart persistence");
         check(store.payload(first)==bytes,"Restart payload");
+        check(store.snippets().size()==1 && store.snippets()[0].id==snippet && store.snippets()[0].preview==L"수정된 제목","Snippet restart persistence");
         store.erase(second); check(store.list().size()==2,"Delete selected");
         for (int i=0;i<15;++i) { auto s=std::to_string(i); store.put(0,Bytes(s.begin(),s.end()),wide(s)); }
         store.limit(10); check(store.list().size()==10,"History limit");
         store.clear(); check(store.list().empty(),"Clear history");
         check(store.setting("language","ko")=="en","Clear preserves settings");
+        check(store.snippets().size()==1 && !store.payload(snippet,true).empty(),"History pruning and clearing preserve snippets");
+        auto clip=store.put(0,bytes,L"history"); store.erase(snippet,true);
+        check(store.snippets().empty() && store.payload(clip)==bytes,"Snippet deletion preserves history");
     }
     std::filesystem::remove(folder/L"history.db"); std::filesystem::remove(folder/L"history.db-journal"); std::filesystem::remove(folder);
     std::cout<<"PASS: "<<checks<<" storage, localization, and image checks\n"; return 0;
 }
 int smoke_test(const std::filesystem::path& output,bool english,const std::wstring& scenario) {
     std::filesystem::create_directories(output.parent_path());
-    auto folder=output.parent_path()/(L"ui-"+std::to_wstring(GetCurrentProcessId()));
+    auto folder=output.parent_path()/(L"ui-"+std::to_wstring(GetCurrentProcessId())+L"-"+std::to_wstring(GetTickCount64()));
     App app(folder,true); app.english=english;
     app.store.clear();
     auto image=test_image(); app.store.put(1,image.png,L"",image.width,image.height);
@@ -793,6 +951,49 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
     check(EqualRect(&edgeCompact,&edgeAgain)!=FALSE,"Repeated expansion does not drift");
     app.popupAnchor=originalAnchor;
     check(app.store.list().front().id==shortId && app.store.payload(longId)==originalLongPayload,"Preview does not modify history order or payload");
+    SendMessageW(app.mode,CB_SETCURSEL,1,0); app.switch_mode();
+    check(app.snippetsMode && app.items.empty() && !IsWindowEnabled(app.buttons[2]),"Snippet mode keeps history clear disabled");
+    check(IsWindowVisible(app.search) && GetFocus()==app.search && !IsWindowEnabled(app.snippetButtons[1]),"Empty snippets expose search and disable edit");
+    check(GetNextDlgTabItem(app.popup,app.mode,FALSE)==app.search && GetNextDlgTabItem(app.popup,app.search,FALSE)==app.snippetButtons[0],"Snippet keyboard navigation follows toolbar order");
+    auto snippetId=app.store.save_snippet(0,L"인사 Greeting",L"안녕하세요.\r\nSecond line");
+    app.store.save_snippet(0,L"Other",L"Another body"); app.refresh();
+    SetWindowTextW(app.search,L"second LINE");
+    check(app.items.size()==1 && app.items[0].id==snippetId && app.previewExpanded,"Snippet body search and multiline preview");
+    SetWindowTextW(app.search,L"없는 문구");
+    check(app.items.empty() && !IsWindowEnabled(app.snippetButtons[1]),"No search results disable edit");
+    SetWindowTextW(app.search,L"Greeting");
+    SendMessageW(app.search,WM_KEYDOWN,VK_DOWN,0);
+    check(GetFocus()==app.list && app.selected()==0,"Search moves keyboard focus to results");
+    SendMessageW(app.list,WM_KEYDOWN,VK_RETURN,0);
+    check(PeekMessageW(&paste,app.popup,paste_message,paste_message,PM_REMOVE)!=FALSE,"Snippet Enter retains paste command");
+    auto saveFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
+        KillTimer(window,timer); HWND dialog=GetLastActivePopup(window);
+        SetDlgItemTextW(dialog,IDC_SNIPPET_TITLE,L"저장된 제목 Saved title");
+        SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,L"첫 줄\r\nSaved second line");
+        PostMessageW(dialog,WM_COMMAND,IDOK,0);
+    };
+    check(SetTimer(app.popup,90,20,saveFixture)!=0,"Snippet save fixture scheduled"); app.edit_snippet(false);
+    check(app.items[app.selected()].id==snippetId && app.items[app.selected()].preview==L"저장된 제목 Saved title","Editor saves selected snippet");
+    auto beforeCancel=app.store.payload(snippetId,true);
+    auto cancelFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
+        KillTimer(window,timer); HWND dialog=GetLastActivePopup(window);
+        SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,L"Discard this edit"); PostMessageW(dialog,WM_COMMAND,IDCANCEL,0);
+    };
+    check(SetTimer(app.popup,90,20,cancelFixture)!=0,"Snippet cancel fixture scheduled"); app.edit_snippet(false);
+    check(app.store.payload(snippetId,true)==beforeCancel,"Cancel preserves snippet body");
+    auto snippetCount=app.store.snippets().size();
+    check(SetTimer(app.popup,90,20,saveFixture)!=0,"New snippet fixture scheduled"); app.edit_snippet(true);
+    check(app.store.snippets().size()==snippetCount+1,"Create new snippet from popup");
+    SendMessageW(app.mode,CB_SETCURSEL,0,0); app.switch_mode(); select(3);
+    check(!IsWindowEnabled(app.snippetButtons[2]),"Image cannot be saved as text snippet"); select(0);
+    check(IsWindowEnabled(app.snippetButtons[2]) && !IsWindowVisible(app.search),"History text exposes save as snippet");
+    auto acceptFixture=[](HWND window,UINT,UINT_PTR timer,DWORD) {
+        KillTimer(window,timer); PostMessageW(GetLastActivePopup(window),WM_COMMAND,IDOK,0);
+    };
+    check(SetTimer(app.popup,90,20,acceptFixture)!=0,"Save history fixture scheduled"); app.edit_snippet(true);
+    check(app.snippetsMode && app.store.payload(app.editingSnippet,true)==app.store.payload(shortId),"Save history preserves full snippet body");
+    check(app.store.list().front().id==shortId && app.store.payload(longId)==originalLongPayload,"Snippet editing preserves clipboard history");
+    SendMessageW(app.mode,CB_SETCURSEL,0,0); app.switch_mode(); select(0);
     HWND settingsWindow=nullptr;
     if (scenario==L"settings") {
         settingsWindow=CreateDialogParamW(instance,MAKEINTRESOURCEW(IDD_SETTINGS),app.popup,App::dialog_proc,reinterpret_cast<LPARAM>(&app));
@@ -803,6 +1004,17 @@ int smoke_test(const std::filesystem::path& output,bool english,const std::wstri
         check(GetDlgItem(settingsWindow,IDC_HOTKEY)!=nullptr && SendDlgItemMessageW(settingsWindow,IDC_HOTKEY,HKM_GETHOTKEY,0,0)==MAKEWORD(app.key,HOTKEYF_CONTROL|HOTKEYF_SHIFT),"Settings shortcut value retained");
         check(IsDlgButtonChecked(settingsWindow,IDC_STARTUP)==BST_UNCHECKED,"Synthetic settings do not read real startup state");
         ShowWindow(settingsWindow,SW_SHOW); UpdateWindow(settingsWindow);
+    }
+    else if (scenario==L"snippets" || scenario==L"snippet-editor") {
+        SendMessageW(app.mode,CB_SETCURSEL,1,0); app.switch_mode(); SetWindowTextW(app.search,L"Saved");
+        if (scenario==L"snippet-editor") {
+            app.editingSnippet=app.items[0].id; app.draftTitle=app.items[0].preview;
+            auto bytes=app.store.payload(app.editingSnippet,true); app.draftBody=wide(std::string(bytes.begin(),bytes.end()));
+            settingsWindow=CreateDialogParamW(instance,MAKEINTRESOURCEW(IDD_SNIPPET),app.popup,App::snippet_proc,reinterpret_cast<LPARAM>(&app));
+            check(settingsWindow!=nullptr,"Snippet editor window created");
+            check(window_text(GetDlgItem(settingsWindow,IDOK))==app.t(IDS_SAVE),"Snippet editor localized Save label");
+            ShowWindow(settingsWindow,SW_SHOW); UpdateWindow(settingsWindow);
+        }
     }
     else if (scenario==L"contrast") { select(1); app.theme(true); }
     else if (scenario==L"many") {

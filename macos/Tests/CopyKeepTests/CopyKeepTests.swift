@@ -103,6 +103,46 @@ struct CopyKeepTests {
         localization.language = "en-US"; expectEqual(localization.text("settings"), "Settings")
     }
 
+    @Test func testSnippetsStaySeparateAndPersist() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var store: HistoryStore? = try HistoryStore(directory: directory)
+        try store!.add(kind: "text", payload: text("original history"), limit: 200)
+        let id = try store!.saveSnippet(title: "인사 Greeting", body: "첫 줄\r\nSecond line")
+        expectEqual(try store!.snippets(matching: "gReEt").first?.id, id)
+        expectEqual(try store!.snippets(matching: "SECOND").first?.text, "첫 줄\r\nSecond line")
+        expectEqual(try store!.snippets(matching: "첫 줄").count, 1)
+        expectTrue(try store!.snippets(matching: "%").isEmpty)
+        expectTrue(try store!.snippets(matching: "' OR 1=1 --").isEmpty)
+        expectTrue(try store!.snippets().first?.isSnippet == true)
+        try store!.saveSnippet(id: id, title: "Edited", body: "수정한 본문")
+        expectEqual(try store!.snippets().count, 1)
+        for number in 0..<15 { try store!.add(kind: "text", payload: text("item \(number)"), limit: 10) }
+        try store!.clear()
+        expectEqual(try store!.snippets().first?.title, "Edited")
+        store = nil
+        let restored = try HistoryStore(directory: directory)
+        expectEqual(try restored.snippets().first?.text, "수정한 본문")
+        try restored.add(kind: "text", payload: text("keep history"), limit: 200)
+        try restored.deleteSnippet(id)
+        expectTrue(try restored.snippets().isEmpty)
+        expectEqual(try restored.list().first?.text, "keep history")
+    }
+
+    @Test func testInvalidSnippetEditsPreserveOriginal() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try HistoryStore(directory: directory)
+        let id = try store.saveSnippet(title: "Keep", body: "Keep body")
+        for title in ["", " ", "two\nlines", "tab\t", String(repeating: "a", count: 81), "bad\0"] {
+            expectThrows(try store.saveSnippet(id: id, title: title, body: "discard"))
+        }
+        for body in ["", " \n", String(repeating: "a", count: 65537), "bad\0"] {
+            expectThrows(try store.saveSnippet(id: id, title: "discard", body: body))
+        }
+        expectThrows(try store.saveSnippet(id: 999999, title: "missing", body: "body"))
+        expectEqual(try store.snippets().first?.title, "Keep")
+        expectEqual(try store.snippets().first?.text, "Keep body")
+    }
+
     @Test func testShortcutValidation() {
         expectTrue(ShortcutKeys.valid(key: 6, modifiers: UInt32(controlKey | shiftKey)))
         expectTrue(ShortcutKeys.valid(key: 0, modifiers: UInt32(optionKey)))

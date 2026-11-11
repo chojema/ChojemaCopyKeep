@@ -21,6 +21,20 @@ BEGIN
     CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 224, 188, 76, 22
 END
 
+IDD_SNIPPET DIALOGEX 0, 0, 360, 274
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Chojema CopyKeep"
+FONT 10, "Segoe UI"
+BEGIN
+    LTEXT "", IDC_SNIPPET_TITLE_LABEL, 16, 14, 328, 14
+    EDITTEXT IDC_SNIPPET_TITLE, 16, 30, 328, 19, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "", IDC_SNIPPET_BODY_LABEL, 16, 59, 328, 14
+    EDITTEXT IDC_SNIPPET_BODY, 16, 75, 328, 134, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP
+    LTEXT "", IDC_SNIPPET_HELP, 16, 216, 328, 20
+    CONTROL "", IDOK, "Button", BS_OWNERDRAW | WS_TABSTOP, 186, 242, 76, 22
+    CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 268, 242, 76, 22
+END
+
 LANGUAGE LANG_KOREAN, SUBLANG_KOREAN
 STRINGTABLE
 BEGIN
@@ -59,6 +73,19 @@ BEGIN
     IDS_NO_TARGET "붙여넣을 앱에서 단축키를 누르세요."
     IDS_PASTE_ACTION "붙여넣기"
     IDS_HOTKEY_EMPTY "키 조합을 누르세요"
+    IDS_HISTORY "기록"
+    IDS_SNIPPETS "상용구"
+    IDS_SEARCH "검색"
+    IDS_NEW_SNIPPET "새 상용구"
+    IDS_EDIT_SNIPPET "편집"
+    IDS_SAVE_SNIPPET "상용구로 저장"
+    IDS_SNIPPET_TITLE "제목(&T)"
+    IDS_SNIPPET_BODY "내용(&B)"
+    IDS_SNIPPET_EMPTY "저장된 상용구가 없습니다.\n새 상용구를 만들거나 텍스트 기록에서 저장하세요."
+    IDS_NO_RESULTS "검색 결과가 없습니다."
+    IDS_BAD_SNIPPET "공백이 아닌 제목과 내용을 입력하세요. 제목은 한 줄로 80자, 내용은 65,536자까지 입력할 수 있습니다."
+    IDS_SNIPPET_HELP "기록 전체 삭제와 보관 한도는 상용구에 적용되지 않습니다."
+    IDS_SNIPPET_DELETE_CONFIRM "선택한 상용구를 삭제할까요? 이 작업은 되돌릴 수 없습니다."
 END
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
@@ -99,6 +126,19 @@ BEGIN
     IDS_NO_TARGET "Use the shortcut while a destination app is active."
     IDS_PASTE_ACTION "Paste"
     IDS_HOTKEY_EMPTY "Press a key combination"
+    IDS_HISTORY "History"
+    IDS_SNIPPETS "Snippets"
+    IDS_SEARCH "Search"
+    IDS_NEW_SNIPPET "New snippet"
+    IDS_EDIT_SNIPPET "Edit"
+    IDS_SAVE_SNIPPET "Save as snippet"
+    IDS_SNIPPET_TITLE "&Title"
+    IDS_SNIPPET_BODY "&Content"
+    IDS_SNIPPET_EMPTY "No snippets yet.\nCreate a snippet or save one from text history."
+    IDS_NO_RESULTS "No matching snippets."
+    IDS_BAD_SNIPPET "Enter a nonblank title and content. Use a single-line title up to 80 characters and content up to 65,536 characters."
+    IDS_SNIPPET_HELP "Clearing history and the history limit do not affect snippets."
+    IDS_SNIPPET_DELETE_CONFIRM "Delete the selected snippet? This cannot be undone."
 END
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL

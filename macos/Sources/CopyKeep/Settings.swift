@@ -29,7 +29,7 @@ final class SettingsController: NSObject, NSWindowDelegate {
     private var labels: [String: NSTextField] = [:]
     private let save = NSButton()
     private let cancel = NSButton()
-    private let about = NSTextField(labelWithString: "Chojema CopyKeep 0.1.4 · Park Chulwoo")
+    private let about = NSTextField(labelWithString: "Chojema CopyKeep 0.2.0 · Park Chulwoo")
     var onSave: ((Preferences, Bool) -> Bool)?
     var onLanguage: ((String) -> Void)?
     private var original = Preferences()

@@ -82,9 +82,15 @@ final class HistoryTable: NSTableView {
 }
 
 final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSWindowDelegate {
-    let panel = HistoryPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 410),
+    let panel = HistoryPanel(contentRect: NSRect(x: 0, y: 0, width: 420, height: 490),
                              styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel], backing: .buffered, defer: false)
     let table = HistoryTable()
+    let source = NSPopUpButton()
+    let search = NSSearchField()
+    private(set) var showingSnippets = false
+    var onReload: (() -> Void)?
+    var onNewSnippet: (() -> Void)?
+    var onEditSnippet: ((HistoryItem) -> Void)?
     private let scroll = NSScrollView()
     private let title = NSTextField(labelWithString: "Chojema CopyKeep")
     private let count = NSTextField(labelWithString: "")
@@ -129,8 +135,17 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         hint.font = .systemFont(ofSize: 11)
         hint.textColor = .secondaryLabelColor
         [title, count, hint, empty, scroll, previewBox].forEach(root.addSubview)
-        title.frame = NSRect(x: 16, y: 366, width: 300, height: 25)
-        count.frame = NSRect(x: 16, y: 343, width: 380, height: 18)
+        title.frame = NSRect(x: 16, y: 446, width: 300, height: 25)
+        count.frame = NSRect(x: 16, y: 423, width: 380, height: 18)
+        source.frame = NSRect(x: 12, y: 383, width: 130, height: 28)
+        source.target = self; source.action = #selector(changeSource)
+        search.frame = NSRect(x: 150, y: 383, width: 255, height: 28)
+        search.target = self; search.action = #selector(searchChanged)
+        search.sendsSearchStringImmediately = true; search.sendsWholeSearchString = false
+        [source, search].forEach(root.addSubview)
+        addButton("newSnippet", action: #selector(newSnippet), frame: NSRect(x: 12, y: 345, width: 130, height: 30))
+        addButton("editSnippet", action: #selector(editSnippet), frame: NSRect(x: 150, y: 345, width: 100, height: 30))
+        addButton("saveSnippet", action: #selector(editSnippet), frame: NSRect(x: 12, y: 345, width: 175, height: 30))
         scroll.frame = NSRect(x: 10, y: 80, width: 400, height: 254)
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
@@ -157,12 +172,12 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         addButton("settings", action: #selector(settings), frame: NSRect(x: 12, y: 13, width: 95, height: 30))
         addButton("delete", action: #selector(deleteSelected), frame: NSRect(x: 115, y: 13, width: 105, height: 30))
         addButton("clear", action: #selector(clear), frame: NSRect(x: 228, y: 13, width: 110, height: 30))
-        addButton("close", action: #selector(close), frame: NSRect(x: 371, y: 365, width: 34, height: 28))
-        previewBox.frame = NSRect(x: 430, y: 14, width: 356, height: 382)
+        addButton("close", action: #selector(close), frame: NSRect(x: 371, y: 445, width: 34, height: 28))
+        previewBox.frame = NSRect(x: 430, y: 14, width: 356, height: 462)
         [previewTitle, previewScroll, previewImage].forEach(previewBox.addSubview)
-        previewTitle.frame = NSRect(x: 14, y: 346, width: 328, height: 22)
+        previewTitle.frame = NSRect(x: 14, y: 426, width: 328, height: 22)
         previewTitle.font = .systemFont(ofSize: 13, weight: .semibold)
-        previewScroll.frame = NSRect(x: 12, y: 12, width: 332, height: 324)
+        previewScroll.frame = NSRect(x: 12, y: 12, width: 332, height: 404)
         previewScroll.hasVerticalScroller = true
         previewScroll.documentView = previewText
         previewText.isEditable = false
@@ -194,8 +209,12 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
             button.title = key == "close" ? "×" : tr(key)
             button.setAccessibilityLabel(tr(key))
         }
-        table.setAccessibilityLabel(tr("history"))
-        empty.stringValue = tr("empty")
+        source.removeAllItems(); source.addItems(withTitles: [tr("history"), tr("snippets")])
+        source.selectItem(at: showingSnippets ? 1 : 0)
+        source.setAccessibilityLabel(tr("source"))
+        search.placeholderString = tr("searchSnippets"); search.setAccessibilityLabel(tr("searchSnippets"))
+        table.setAccessibilityLabel(tr(showingSnippets ? "snippets" : "history"))
+        empty.stringValue = tr(showingSnippets ? (search.stringValue.isEmpty ? "emptySnippets" : "noSnippets") : "empty")
         hint.stringValue = tr("keys")
         previewTitle.stringValue = tr("preview")
         previewText.setAccessibilityLabel(tr("preview"))
@@ -223,7 +242,12 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         if !items.isEmpty { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         empty.isHidden = !items.isEmpty
         buttons["delete"]?.isEnabled = !items.isEmpty
-        buttons["clear"]?.isEnabled = !items.isEmpty
+        buttons["clear"]?.isEnabled = !showingSnippets && !items.isEmpty
+        search.isHidden = !showingSnippets
+        buttons["newSnippet"]?.isHidden = !showingSnippets
+        buttons["editSnippet"]?.isHidden = !showingSnippets
+        buttons["saveSnippet"]?.isHidden = showingSnippets
+        empty.stringValue = tr(showingSnippets ? (search.stringValue.isEmpty ? "emptySnippets" : "noSnippets") : "empty")
         updateCount()
         updatePreview()
     }
@@ -239,7 +263,7 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         let icon = NSImageView(frame: NSRect(x: 9, y: 9, width: 18, height: 18))
         icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tr(item.kind))
         icon.contentTintColor = Palette.accent
-        let label = NSTextField(labelWithString: item.kind == "text" ? item.text.components(separatedBy: .newlines).joined(separator: " ").replacingOccurrences(of: "\t", with: " ") : tr("image"))
+        let label = NSTextField(labelWithString: item.kind == "text" ? (item.title ?? item.text).components(separatedBy: .newlines).joined(separator: " ").replacingOccurrences(of: "\t", with: " ") : tr("image"))
         label.frame = NSRect(x: 36, y: 8, width: 332, height: 20)
         label.font = .systemFont(ofSize: 14)
         label.lineBreakMode = .byTruncatingTail
@@ -247,7 +271,7 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         cell.addSubview(label)
         cell.textField = label
         cell.imageView = icon
-        cell.setAccessibilityLabel(tr(item.kind) + ": " + label.stringValue)
+        cell.setAccessibilityLabel(tr(item.isSnippet ? "snippets" : item.kind) + ": " + label.stringValue)
         return cell
     }
 
@@ -268,21 +292,32 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private func updatePreview() {
         let row = hoverRow >= 0 ? hoverRow : table.selectedRow
         let item = items.indices.contains(row) ? items[row] : nil
-        showsPreview = item.map { ClipboardContent.needsPreview($0) } ?? false
+        let selected = items.indices.contains(table.selectedRow) ? items[table.selectedRow] : nil
+        buttons["editSnippet"]?.isEnabled = selected != nil
+        buttons["saveSnippet"]?.isEnabled = selected?.kind == "text"
+        showsPreview = item.map { $0.isSnippet || ClipboardContent.needsPreview($0) } ?? false
         previewBox.isHidden = !showsPreview
         if let item, showsPreview {
             previewImage.isHidden = item.kind != "image"
             previewScroll.isHidden = item.kind == "image"
             previewImage.image = item.kind == "image" ? NSImage(data: item.payload) : nil
             previewText.string = item.kind == "text" ? item.text : ""
-            previewText.frame = NSRect(x: 0, y: 0, width: 332, height: 324)
+            previewText.frame = NSRect(x: 0, y: 0, width: 332, height: 404)
             previewText.scrollToBeginningOfDocument(nil)
         }
-        panel.setFrame(PopupPlacement.frame(anchor: anchor, size: NSSize(width: showsPreview ? 800 : 420, height: 410), screen: screen), display: true)
+        panel.setFrame(PopupPlacement.frame(anchor: anchor, size: NSSize(width: showsPreview ? 800 : 420, height: 490), screen: screen), display: true)
     }
 
     private func handleKey(_ event: NSEvent) -> Bool {
         guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
+        if panel.firstResponder !== table {
+            if event.keyCode == 53 { close(); return true }
+            if event.keyCode == 125, search.currentEditor() != nil,
+               (search.currentEditor() as? NSTextView)?.hasMarkedText() != true {
+                panel.makeFirstResponder(table); return true
+            }
+            return false
+        }
         switch event.keyCode {
         case 53: close(); return true
         case 36, 76: pasteSelected(); return true
@@ -299,6 +334,20 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         }
     }
 
+    func selectSource(_ snippets: Bool) {
+        showingSnippets = snippets; source.selectItem(at: snippets ? 1 : 0)
+        refreshLanguage()
+    }
+    func reopen() { panel.makeKeyAndOrderFront(nil); panel.makeFirstResponder(table) }
+    @objc func changeSource() {
+        selectSource(source.indexOfSelectedItem == 1); onReload?()
+        panel.makeFirstResponder(showingSnippets ? search : table)
+    }
+    @objc func searchChanged() { onReload?() }
+    @objc func newSnippet() { onNewSnippet?() }
+    @objc func editSnippet() {
+        if items.indices.contains(table.selectedRow), items[table.selectedRow].kind == "text" { onEditSnippet?(items[table.selectedRow]) }
+    }
     @objc func clicked() { if table.clickedRow >= 0 { pasteSelected() } }
     func pasteSelected() { if items.indices.contains(table.selectedRow) { onPaste?(items[table.selectedRow]) } }
     @objc func deleteSelected() { if items.indices.contains(table.selectedRow) { onDelete?(items[table.selectedRow]) } }
@@ -313,4 +362,72 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         guard let png = bitmap.representation(using: .png, properties: [:]) else { throw StoreError.invalidItem }
         try png.write(to: url)
     }
+}
+
+final class SnippetEditorController: NSObject {
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 570, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+    let titleField = NSTextField()
+    let body = NSTextView()
+    private let titleLabel = NSTextField(labelWithString: "")
+    private let bodyLabel = NSTextField(labelWithString: "")
+    private let help = NSTextField(wrappingLabelWithString: "")
+    private let save = NSButton()
+    private let cancel = NSButton()
+    private var id: Int64?
+    var onSave: ((Int64?, String, String) -> Bool)?
+    var onFinish: (() -> Void)?
+
+    override init() {
+        super.init()
+        window.isReleasedWhenClosed = false
+        let root = ThemedView(fill: { Palette.background })
+        window.contentView = root
+        window.backgroundColor = Palette.background
+        titleLabel.frame = NSRect(x: 24, y: 395, width: 520, height: 21)
+        titleField.frame = NSRect(x: 24, y: 360, width: 520, height: 26)
+        bodyLabel.frame = NSRect(x: 24, y: 321, width: 520, height: 21)
+        let scroll = NSScrollView(frame: NSRect(x: 24, y: 100, width: 520, height: 212))
+        scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder
+        scroll.documentView = body
+        body.frame = NSRect(x: 0, y: 0, width: 500, height: 210)
+        body.isRichText = false; body.font = .systemFont(ofSize: 14)
+        body.isHorizontallyResizable = false; body.isVerticallyResizable = true
+        body.autoresizingMask = [.width]; body.textContainer?.widthTracksTextView = true
+        body.textContainerInset = NSSize(width: 8, height: 8)
+        body.isAutomaticQuoteSubstitutionEnabled = false; body.isAutomaticDashSubstitutionEnabled = false
+        body.isAutomaticTextReplacementEnabled = false; body.isAutomaticSpellingCorrectionEnabled = false
+        help.frame = NSRect(x: 24, y: 56, width: 520, height: 34)
+        help.font = .systemFont(ofSize: 11); help.textColor = .secondaryLabelColor
+        save.frame = NSRect(x: 434, y: 15, width: 110, height: 32)
+        save.bezelStyle = .rounded; save.target = self; save.action = #selector(saveChanges); save.keyEquivalent = "\r"
+        cancel.frame = NSRect(x: 314, y: 15, width: 110, height: 32)
+        cancel.bezelStyle = .rounded; cancel.target = self; cancel.action = #selector(close); cancel.keyEquivalent = "\u{1b}"
+        [titleLabel, titleField, bodyLabel, scroll, help, save, cancel].forEach(root.addSubview)
+        window.delegate = self
+        refreshLanguage()
+    }
+
+    func refreshLanguage() {
+        window.title = tr(id == nil ? "newSnippet" : "editSnippet")
+        titleLabel.stringValue = tr("snippetTitle"); titleField.setAccessibilityLabel(tr("snippetTitle"))
+        bodyLabel.stringValue = tr("snippetBody"); body.setAccessibilityLabel(tr("snippetBody"))
+        help.stringValue = tr("snippetHelp"); save.title = tr("save"); cancel.title = tr("cancel")
+    }
+
+    func show(_ item: HistoryItem?) {
+        id = item?.isSnippet == true ? item?.id : nil
+        titleField.stringValue = item?.title ?? String((item?.text ?? "").replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\t", with: " ").prefix(80))
+        body.string = item?.text ?? ""
+        refreshLanguage(); window.center()
+        NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil); window.makeFirstResponder(titleField)
+    }
+
+    @objc func saveChanges() {
+        if onSave?(id, titleField.stringValue, body.string) == true { close() }
+    }
+    @objc func close() { window.orderOut(nil); titleField.stringValue = ""; body.string = ""; onFinish?() }
+}
+
+extension SnippetEditorController: NSWindowDelegate {
+    func windowShouldClose(_ sender: NSWindow) -> Bool { close(); return false }
 }

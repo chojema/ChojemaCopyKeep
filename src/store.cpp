@@ -64,6 +64,7 @@ Store::Store(const std::filesystem::path& folder) {
         exec("PRAGMA cache_size=-512; PRAGMA secure_delete=ON; PRAGMA journal_mode=TRUNCATE;"
              "CREATE TABLE IF NOT EXISTS clips(id INTEGER PRIMARY KEY,kind INTEGER NOT NULL,digest TEXT UNIQUE NOT NULL,preview TEXT NOT NULL,payload BLOB NOT NULL,width INTEGER,height INTEGER,rank INTEGER NOT NULL);"
              "CREATE INDEX IF NOT EXISTS clip_rank ON clips(rank DESC);"
+             "CREATE TABLE IF NOT EXISTS snippets(id INTEGER PRIMARY KEY,title TEXT NOT NULL,payload BLOB NOT NULL);"
              "CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);");
     } catch (...) { sqlite3_close(db_); db_ = nullptr; throw; }
 }
@@ -117,8 +118,37 @@ std::vector<Item> Store::list() {
     }
     return out;
 }
-Bytes Store::payload(long long id) {
-    Statement query(db_, "SELECT payload FROM clips WHERE id=?"); sqlite3_bind_int64(query.p, 1, id);
+std::vector<Item> Store::snippets(const std::wstring& query) {
+    Statement select(db_, "SELECT id,title,length(payload) FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 ORDER BY id DESC");
+    auto filter=utf8(query);
+    sqlite3_bind_text(select.p,1,filter.c_str(),-1,SQLITE_TRANSIENT);
+    std::vector<Item> out;
+    int status;
+    while ((status=sqlite3_step(select.p))==SQLITE_ROW) {
+        Item item; item.id=sqlite3_column_int64(select.p,0);
+        item.preview=wide(reinterpret_cast<const char*>(sqlite3_column_text(select.p,1)));
+        item.size=sqlite3_column_int64(select.p,2); out.push_back(std::move(item));
+    }
+    if (status!=SQLITE_DONE) throw std::runtime_error("Snippet query failed");
+    return out;
+}
+long long Store::save_snippet(long long id, const std::wstring& title, const std::wstring& body) {
+    if (id<0 || title.empty() || title.size()>80 || title.find_first_not_of(L" \t\r\n")==std::wstring::npos ||
+        title.find_first_of(L"\r\n\t")!=std::wstring::npos || title.find(L'\0')!=std::wstring::npos ||
+        body.empty() || body.size()>65536 || body.find_first_not_of(L" \t\r\n")==std::wstring::npos || body.find(L'\0')!=std::wstring::npos)
+        throw std::invalid_argument("Invalid snippet");
+    auto label=utf8(title), content=utf8(body);
+    if (label.empty() || content.empty()) throw std::runtime_error("Snippet encoding failed");
+    Statement save(db_,id?"UPDATE snippets SET title=?1,payload=?2 WHERE id=?3":"INSERT INTO snippets(title,payload) VALUES(?1,?2)");
+    sqlite3_bind_text(save.p,1,label.c_str(),-1,SQLITE_TRANSIENT);
+    sqlite3_bind_blob(save.p,2,content.data(),static_cast<int>(content.size()),SQLITE_TRANSIENT);
+    if (id) sqlite3_bind_int64(save.p,3,id);
+    save.done();
+    if (id && sqlite3_changes(db_)!=1) throw std::runtime_error("Snippet no longer exists");
+    return id?id:sqlite3_last_insert_rowid(db_);
+}
+Bytes Store::payload(long long id, bool snippet) {
+    Statement query(db_, snippet?"SELECT payload FROM snippets WHERE id=?":"SELECT payload FROM clips WHERE id=?"); sqlite3_bind_int64(query.p, 1, id);
     if (sqlite3_step(query.p) != SQLITE_ROW) return {};
     const auto* p = static_cast<const unsigned char*>(sqlite3_column_blob(query.p, 0));
     int size = sqlite3_column_bytes(query.p, 0);
@@ -129,8 +159,8 @@ void Store::use(long long id, bool promote) {
     Statement update(db_, "UPDATE clips SET rank=(SELECT COALESCE(MAX(rank),0)+1 FROM clips) WHERE id=?");
     sqlite3_bind_int64(update.p, 1, id); update.done();
 }
-void Store::erase(long long id) {
-    Statement remove(db_, "DELETE FROM clips WHERE id=?"); sqlite3_bind_int64(remove.p, 1, id); remove.done();
+void Store::erase(long long id, bool snippet) {
+    Statement remove(db_, snippet?"DELETE FROM snippets WHERE id=?":"DELETE FROM clips WHERE id=?"); sqlite3_bind_int64(remove.p, 1, id); remove.done();
 }
 void Store::clear() { exec("DELETE FROM clips; VACUUM;"); }
 std::string Store::setting(const char* key, const char* fallback) {

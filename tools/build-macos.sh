@@ -37,6 +37,8 @@ RESOURCE_BUNDLE="$BIN_DIR/ChojemaCopyKeep_CopyKeep.bundle"
 test -d "$RESOURCE_BUNDLE"
 ditto "$RESOURCE_BUNDLE" "$APP_BUNDLE/Contents/Resources/ChojemaCopyKeep_CopyKeep.bundle"
 chmod 755 "$APP_BUNDLE/Contents/MacOS/ChojemaCopyKeep"
+# Synced folders can attach Finder metadata that prevents code signing.
+xattr -cr "$APP_BUNDLE"
 codesign --force --sign - --timestamp=none "$APP_BUNDLE"
 codesign --verify --deep --strict "$APP_BUNDLE"
 plutil -lint "$APP_BUNDLE/Contents/Info.plist"

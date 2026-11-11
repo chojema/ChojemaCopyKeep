@@ -7,6 +7,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     var preferences = Preferences()
     let popup = PopupController()
     let settings = SettingsController()
+    let snippetEditor = SnippetEditorController()
     private let hotKey = HotKey()
     private var status: NSStatusItem?
     private var timer: Timer?
@@ -51,7 +52,26 @@ final class AppController: NSObject, NSApplicationDelegate {
 
     private func wireActions() {
         popup.onPaste = { [weak self] in self?.paste($0) }
-        popup.onDelete = { [weak self] item in self?.modifyHistory { try self?.store.delete(item.id) } }
+        popup.onDelete = { [weak self] item in self?.deleteItem(item) }
+        popup.onReload = { [weak self] in
+            do { try self?.reloadPopup() } catch { showAlert("storageError") }
+        }
+        popup.onNewSnippet = { [weak self] in self?.editSnippet(nil) }
+        popup.onEditSnippet = { [weak self] in self?.editSnippet($0) }
+        snippetEditor.onSave = { [weak self] id, title, body in
+            guard let self else { return false }
+            do {
+                let saved = try self.store.saveSnippet(id: id, title: title, body: body)
+                self.popup.selectSource(true); self.popup.search.stringValue = ""
+                try self.reloadPopup()
+                if let row = self.popup.items.firstIndex(where: { $0.id == saved }) {
+                    self.popup.table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+                }
+                return true
+            } catch StoreError.invalidItem { showAlert("invalidSnippet"); return false }
+            catch { showAlert("storageError"); return false }
+        }
+        snippetEditor.onFinish = { [weak self] in self?.popup.reopen() }
         popup.onClear = { [weak self] in self?.clearHistory() }
         popup.onSettings = { [weak self] in self?.openSettings() }
         settings.onLanguage = { [weak self] language in
@@ -68,6 +88,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         Localization.shared.language = preferences.language
         popup.refreshLanguage()
         settings.refreshLanguage()
+        snippetEditor.refreshLanguage()
         let menu = NSMenu()
         for (key, action) in [("history", #selector(openHistory)), ("settings", #selector(openSettings)),
                               (paused ? "resume" : "pause", #selector(togglePause)), ("quit", #selector(quit))] {
@@ -90,7 +111,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         do {
             try store.add(kind: kind, payload: data, limit: preferences.limit)
             collectionErrorShown = false
-            if popup.panel.isVisible { popup.reload(try store.list()) }
+            if popup.panel.isVisible && !popup.showingSnippets { popup.reload(try store.list()) }
         } catch {
             // Stop collection after a storage failure; retry only when the user resumes it.
             paused = true; refreshLanguage()
@@ -99,13 +120,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     @objc func openHistory() {
-        guard store != nil, !pastePending else { return }
+        guard store != nil, !pastePending, !snippetEditor.window.isVisible else { return }
         if popup.panel.isVisible { popup.close(); return }
         target = NSWorkspace.shared.frontmostApplication
         if target?.processIdentifier == ProcessInfo.processInfo.processIdentifier { target = nil }
         let anchor = caretPosition() ?? NSEvent.mouseLocation
         let screen = NSScreen.screens.first { $0.frame.contains(anchor) } ?? NSScreen.main
-        do { popup.show(items: try store.list(), anchor: anchor, screen: screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1024, height: 768)) }
+        do { popup.show(items: try popupItems(), anchor: anchor, screen: screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1024, height: 768)) }
         catch { showAlert("storageError") }
     }
 
@@ -164,7 +185,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                 timer.invalidate(); self.pastePending = false
                 guard AXIsProcessTrusted(), !target.isTerminated else { showAlert("pasteError"); return }
                 down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
-                if self.preferences.moveUsed {
+                if self.preferences.moveUsed && !item.isSnippet {
                     do { try self.store.touch(item.id) } catch { showAlert("storageError") }
                 }
             } else if Date() >= deadline {
@@ -174,10 +195,32 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     private func modifyHistory(_ action: () throws -> Void) {
-        do { try action(); popup.reload(try store.list()) } catch { showAlert("storageError") }
+        do { try action(); try reloadPopup() } catch { showAlert("storageError") }
+    }
+
+    private func popupItems() throws -> [HistoryItem] {
+        try popup.showingSnippets ? store.snippets(matching: popup.search.stringValue) : store.list()
+    }
+    private func reloadPopup() throws { popup.reload(try popupItems()) }
+
+    private func editSnippet(_ item: HistoryItem?) {
+        if let item, item.kind != "text" || item.text.utf16.count > 65536 { showAlert("invalidSnippet"); return }
+        popup.close(); snippetEditor.show(item)
+    }
+
+    private func deleteItem(_ item: HistoryItem) {
+        if item.isSnippet {
+            popup.close()
+            let alert = NSAlert(); alert.messageText = tr("deleteSnippet"); alert.informativeText = tr("deleteSnippetBody")
+            alert.addButton(withTitle: tr("cancel")); alert.addButton(withTitle: tr("delete"))
+            NSApp.activate(ignoringOtherApps: true)
+            if alert.runModal() == .alertSecondButtonReturn { modifyHistory { try store.deleteSnippet(item.id) } }
+            popup.reopen()
+        } else { modifyHistory { try store.delete(item.id) } }
     }
 
     private func clearHistory() {
+        guard !popup.showingSnippets else { return }
         popup.close()
         let alert = NSAlert()
         alert.messageText = tr("clearConfirm")
@@ -234,6 +277,19 @@ final class AppController: NSObject, NSApplicationDelegate {
         ("Chojema CopyKeep" as NSString).draw(at: NSPoint(x: 34, y: 80), withAttributes: [.font: NSFont.systemFont(ofSize: 24, weight: .semibold), .foregroundColor: NSColor.white])
         NSGraphicsContext.restoreGraphicsState()
         items.append(HistoryItem(id: 4, kind: "image", payload: bitmap.representation(using: .png, properties: [:])!))
+        let snippetScenario = ["snippets", "snippet-editor", "snippet-interactions"].contains(scenario)
+        var smokeDirectory: URL?
+        var snippetChecks = 0
+        if snippetScenario {
+            do {
+                let directory = output.deletingLastPathComponent().appendingPathComponent("snippets-" + UUID().uuidString)
+                smokeDirectory = directory; store = try HistoryStore(directory: directory)
+                preferences.language = Localization.shared.language
+                try store.savePreferences(preferences)
+                for item in items.reversed() { try store.add(kind: item.kind, payload: item.payload, limit: 200) }
+                items = try store.list(); wireActions()
+            } catch { fputs("Smoke storage failed\n", stderr); exit(1) }
+        }
         popup.refreshLanguage()
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
         popup.show(items: scenario == "empty" ? [] : items, anchor: NSPoint(x: screen.midX - 210, y: screen.midY + 205), screen: screen)
@@ -260,6 +316,47 @@ final class AppController: NSObject, NSApplicationDelegate {
             popup.scheduleHover(3)
         }
         if scenario == "hover" { popup.scheduleHover(3) }
+        if snippetScenario {
+            do {
+                func check(_ value: Bool) throws { guard value else { throw StoreError.invalidItem }; snippetChecks += 1 }
+                let original = try store.list().map(\.text)
+                popup.editSnippet()
+                try check(snippetEditor.window.isVisible && snippetEditor.body.string == items[0].text)
+                snippetEditor.saveChanges()
+                try check(popup.showingSnippets && popup.items.count == 1 && popup.items[0].isSnippet && popup.items[0].text == items[0].text)
+                popup.newSnippet()
+                snippetEditor.titleField.stringValue = "인사 Greeting"
+                snippetEditor.body.string = "첫 번째 줄\nSecond line"
+                snippetEditor.saveChanges()
+                try check(try store.snippets().count == 2)
+                popup.editSnippet(); snippetEditor.body.string = "Discard edit"; snippetEditor.close()
+                try check(try store.snippets().first?.text == "첫 번째 줄\nSecond line")
+                popup.editSnippet(); snippetEditor.titleField.stringValue = "수정된 인사 Greeting"
+                snippetEditor.body.string = "수정한 첫 줄\nSecond line"; snippetEditor.saveChanges()
+                try check(try store.snippets().count == 2 && store.snippets().first?.title == "수정된 인사 Greeting")
+                popup.search.stringValue = "second LINE"; popup.searchChanged()
+                try check(popup.items.count == 1 && popup.showsPreview)
+                popup.search.stringValue = "없는 결과"; popup.searchChanged(); try check(popup.items.isEmpty)
+                popup.search.stringValue = "Greeting"; popup.searchChanged()
+                try check(popup.items.count == 1)
+                popup.onDelete = { deleteIDs.append($0.id) }; popup.onPaste = { pasteIDs.append($0.id) }
+                popup.panel.makeFirstResponder(popup.search); keyEvent(51)
+                try check(deleteIDs.isEmpty)
+                keyEvent(125); try check(popup.panel.firstResponder === popup.table)
+                keyEvent(36); try check(pasteIDs.count == 1 && pasteIDs[0] == popup.items[0].id)
+                do { try store.saveSnippet(title: "", body: "discard"); throw StoreError.database }
+                catch StoreError.invalidItem { snippetChecks += 1 }
+                do { try store.saveSnippet(title: "too large", body: String(repeating: "x", count: 65537)); throw StoreError.database }
+                catch StoreError.invalidItem { snippetChecks += 1 }
+                try check(try store.list().map(\.text) == original)
+                try store.prune(limit: 10); try store.clear()
+                try check(try store.snippets().count == 2 && store.loadPreferences() == preferences)
+                store = nil; store = try HistoryStore(directory: smokeDirectory!)
+                try check(try store.snippets().count == 2)
+                popup.search.stringValue = "Greeting"; popup.searchChanged()
+                if scenario == "snippet-editor" { popup.editSnippet() }
+            } catch { fputs("Snippet interaction checks failed\n", stderr); exit(1) }
+        }
         if scenario == "settings" { popup.close(); settings.show(Preferences(language: Localization.shared.language)) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             do {
@@ -284,14 +381,20 @@ final class AppController: NSObject, NSApplicationDelegate {
                    let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                     view.cacheDisplay(in: view.bounds, to: rep)
                     try rep.representation(using: .png, properties: [:])!.write(to: output)
+                } else if scenario == "snippet-editor", let view = self.snippetEditor.window.contentView,
+                          let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    try rep.representation(using: .png, properties: [:])!.write(to: output)
                 } else { try self.popup.snapshot(to: output) }
                 var report: [String: Any] = ["scenario": scenario, "language": Localization.shared.language,
                     "selectedRow": self.popup.table.selectedRow, "hoverRow": self.popup.hoverRow,
                     "preview": self.popup.showsPreview, "items": self.popup.items.count,
                     "width": self.popup.panel.frame.width, "height": self.popup.panel.frame.height]
                 if scenario == "interactions" { report["interactionChecks"] = 12 }
+                if snippetScenario { report["snippetChecks"] = snippetChecks }
                 try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
                     .write(to: output.deletingPathExtension().appendingPathExtension("json"))
+                if let smokeDirectory { self.store = nil; try FileManager.default.removeItem(at: smokeDirectory) }
                 NSApp.terminate(nil)
             } catch { fputs("Smoke rendering failed\n", stderr); exit(1) }
         }

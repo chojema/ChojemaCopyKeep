@@ -39,7 +39,7 @@ build/windows/ChojemaCopyKeep.exe --smoke-test ko .local/preview-ko.png
 build/windows/ChojemaCopyKeep.exe --smoke-test en .local/preview-en.png
 ```
 
-마지막 인수로 `short`, `long`, `multiline`, `hover`, `image`, `empty`, `many`, `settings`, `contrast`를 지정하면 해당 상태를 렌더링합니다. 생략하면 이미지 상태를 사용합니다. `contrast`는 합성 화면에 시스템 고대비 색상을 적용하며 운영체제 설정은 바꾸지 않습니다. 설정창 검사도 기본 검사에 포함됩니다.
+마지막 인수로 `short`, `long`, `multiline`, `hover`, `image`, `empty`, `many`, `settings`, `contrast`를 지정하면 해당 상태를 렌더링합니다. 생략하면 이미지 상태를 사용합니다. `contrast`는 합성 화면에 시스템 고대비 색상을 적용하며 운영체제 설정은 바꾸지 않습니다. 설정창 검사도 기본 검사에 포함됩니다. Windows는 `snippets`, `snippet-editor` 시나리오도 지원하며 상용구 목록과 편집창의 두 언어 검사를 기본 검사에 포함합니다. 상용구 저장·검색·수정·취소·재실행 복원과 기록 삭제로부터의 분리도 검사합니다.
 
 개발용 저장 위치는 `--data-dir`로 지정할 수 있습니다. 일반 실행에서는 이 폴더에 실제 복사 내용이 저장되므로 공개 대상에서 제외해야 합니다.
 
@@ -71,4 +71,6 @@ open -n -W 'build/macos/Chojema CopyKeep.app' --args --smoke-test en /tmp/copyke
 
 화면 시나리오는 `short`, `long`, `multiline`, `image`, `hover`, `empty`, `settings`, `interactions`입니다. PNG와 같은 이름의 JSON에 선택 및 미리보기 상태를 저장합니다. 일반 실행의 개발용 저장 위치는 `--data-dir`로 지정합니다.
 
-`tools/package-macos.sh`는 Universal 앱과 두 언어 안내만 ZIP에 넣고 `SHA256SUMS-macos.txt`를 생성합니다. 기본 빌드는 임시 서명(ad hoc)만 적용하며 Apple 공증과 Developer ID 서명은 포함하지 않습니다. Windows 릴리스와 태그는 보존하고 macOS 소스는 `v0.1.4-macos` 태그로 구분합니다.
+`tools/package-macos.sh`는 Universal 앱과 두 언어 안내만 ZIP에 넣고 `SHA256SUMS-macos.txt`를 생성합니다. 기본 빌드는 임시 서명(ad hoc)만 적용하며 Apple 공증과 Developer ID 서명은 포함하지 않습니다. Windows 릴리스와 태그는 보존하고 macOS 소스는 `v0.2.0-macos` 태그로 구분합니다.
+
+macOS 상용구 합성 검사 시나리오는 `snippets`, `snippet-editor`, `snippet-interactions`입니다. 시험용 데이터베이스에서 생성·편집·취소·검색·키보드 이동·붙여넣기 명령과 기록 삭제 후 보존·재실행 복원을 확인하며 실제 클립보드와 사용자 설정은 변경하지 않습니다.

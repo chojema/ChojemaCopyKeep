@@ -8,6 +8,8 @@ The app stores text and images copied while it is running in a local database. S
 
 History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`, or the separate folder selected for development. The app does not encrypt its database. Access to stored files is managed through Windows accounts and folder permissions.
 
+In macOS 0.2.0 and the Windows source build, user-created snippets are stored in the same database. They are kept separately from clipboard history, so clearing history and applying the history limit do not delete them. Delete snippets individually from the snippet list. Snippets are not encrypted by the app.
+
 ## Transmission
 
 The app has no clipboard upload feature, account login, cloud synchronization, usage collection, or automatic updates. The GitHub repository and releases contain source and distribution files only.

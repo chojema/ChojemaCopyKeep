@@ -8,7 +8,7 @@ A Windows and macOS clipboard manager that saves copied text and images and lets
 
 The app targets x64 Windows 10 and Windows 11. Download the Windows x64 ZIP from the [latest release](https://github.com/chojema/ChojemaCopyKeep/releases/latest), extract it, and run `ChojemaCopyKeep.exe`. The app icon appears in the notification area. Administrator privileges are not required.
 
-For macOS 13 or later, download the Universal ZIP from the [macOS 0.1.4 release](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.1.4-macos), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
+For macOS 13 or later, download the Universal ZIP from the [macOS 0.2.0 release](https://github.com/chojema/ChojemaCopyKeep/releases/tag/v0.2.0-macos), extract it, and move `Chojema CopyKeep.app` to Applications. It includes Apple Silicon and Intel executables. Use the clipboard icon in the menu bar to check status and open Settings. This distribution is ad hoc signed; it has no Developer ID signature or Apple notarization. If macOS blocks the app, you may need to allow this specific app in System Settings > Privacy & Security.
 
 ## Usage
 
@@ -41,6 +41,18 @@ The default macOS shortcut is also `Control + Shift + Z`. Click the menu bar ico
 
 Storage limits are 32 MiB per item, 16,777,216 pixels per image, and 256 MiB of stored payloads. Database file size and process memory usage may differ from these limits.
 
+## Snippets
+
+Snippets are available in macOS 0.2.0 and the Windows source build. They are not included in existing Windows public releases.
+
+- Switch from `History` to `Snippets` in the popup. Search by part of a title or content. English searches are case-insensitive.
+- Use `New snippet` to enter a title and content, or `Edit` to update the selected snippet. Titles support one line up to 80 characters; content supports multiple lines up to 65,536 characters. Supplementary characters may count as two characters.
+- Select a text history item and choose `Save as snippet` to edit and save a separate copy. Images and text exceeding the snippet limit cannot be saved as snippets.
+- Press the Down arrow in the search field to move to the list, then press Enter or click an item to paste into the original app. Clear the search field to show all snippets.
+- Delete a snippet with the Delete key or Delete button, then confirm. The history limit and `Clear all` in History do not affect snippets.
+
+Snippets are stored in the same local database without app-level encryption. Automatic abbreviation expansion, variables, and script execution are not provided. On macOS, use the `Clipboard history / Snippets` selector in the popup. The Backspace (⌫) key also deletes the selected item.
+
 ## Data Storage and Privacy
 
 History and settings are stored in `%LOCALAPPDATA%\ChojemaCopyKeep\history.db`. There is no cloud synchronization, account login, remote transmission, or usage collection. The app does not encrypt its database.
@@ -56,7 +68,7 @@ Sensitive copied content may also be saved. The [privacy guide](docs/PRIVACY.en.
 - Pasting sends `Ctrl + V` to the original app. Input restrictions in the destination app can prevent pasting, including in elevated apps and secure input screens.
 - Paste compatibility across apps and extended runtime behavior require additional validation.
 - On macOS, pasting activates the original app and sends `Command + V`. Secure input or destination app restrictions can prevent pasting. Sending input does not guarantee that the destination accepts the content.
-- macOS 0.1.4 was checked with synthetic data and rendered screens on Apple Silicon. Intel builds and executable structure were checked; physical Intel hardware, pasting across external apps, and startup after login remain unverified.
+- macOS 0.2.0 was checked with synthetic data and rendered screens on Apple Silicon. Intel builds and executable structure were checked; physical Intel hardware, pasting across external apps, and startup after login remain unverified.
 
 ## Build from Source
 
@@ -76,7 +88,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.1.4/`. Use the `v0.1.4-macos` tag for macOS 0.1.4 source. The original `v0.1.3` tag contains Windows source.
+The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.2.0/`. Use the `v0.2.0-macos` tag for macOS 0.2.0 source. The original `v0.1.3` tag contains Windows source.
 
 ## Project Information
 

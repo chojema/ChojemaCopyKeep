@@ -7,7 +7,9 @@ struct HistoryItem {
     let id: Int64
     let kind: String
     let payload: Data
+    var title: String? = nil
     var text: String { String(data: payload, encoding: .utf8) ?? "" }
+    var isSnippet: Bool { title != nil }
 }
 
 struct Preferences: Codable, Equatable {
@@ -37,6 +39,7 @@ final class HistoryStore {
         sqlite3_busy_timeout(db, 3000)
         do {
             try execute("PRAGMA journal_mode=WAL; PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, payload BLOB NOT NULL, hash TEXT NOT NULL UNIQUE, position INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL);")
+            try execute("CREATE TABLE IF NOT EXISTS snippets (id INTEGER PRIMARY KEY, title TEXT NOT NULL, payload BLOB NOT NULL)")
         } catch { sqlite3_close(db); db = nil; throw error }
     }
 
@@ -111,6 +114,45 @@ final class HistoryStore {
 
     func touch(_ id: Int64) throws {
         let stmt = try statement("UPDATE history SET position=(SELECT COALESCE(MAX(position),0)+1 FROM history) WHERE id=?")
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int64(stmt, 1, id)
+        try finish(stmt)
+    }
+
+    func snippets(matching query: String = "") throws -> [HistoryItem] {
+        let stmt = try statement("SELECT id,title,payload FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 ORDER BY id DESC")
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_text(stmt, 1, query, -1, transient)
+        var items: [HistoryItem] = []
+        while true {
+            let result = sqlite3_step(stmt)
+            if result == SQLITE_DONE { return items }
+            guard result == SQLITE_ROW, let title = sqlite3_column_text(stmt, 1), let bytes = sqlite3_column_blob(stmt, 2) else { throw StoreError.database }
+            items.append(HistoryItem(id: sqlite3_column_int64(stmt, 0), kind: "text",
+                payload: Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, 2))), title: String(cString: title)))
+        }
+    }
+
+    @discardableResult
+    func saveSnippet(id: Int64? = nil, title: String, body: String) throws -> Int64 {
+        guard id == nil || id! > 0, (1...80).contains(title.utf16.count), (1...65536).contains(body.utf16.count),
+              !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              title.rangeOfCharacter(from: .newlines.union(CharacterSet(charactersIn: "\t\0"))) == nil,
+              !body.contains("\0") else { throw StoreError.invalidItem }
+        let stmt = try statement(id == nil ? "INSERT INTO snippets(title,payload) VALUES(?1,?2)" : "UPDATE snippets SET title=?1,payload=?2 WHERE id=?3")
+        defer { sqlite3_finalize(stmt) }
+        let data = Data(body.utf8)
+        sqlite3_bind_text(stmt, 1, title, -1, transient)
+        _ = data.withUnsafeBytes { sqlite3_bind_blob(stmt, 2, $0.baseAddress, Int32(data.count), transient) }
+        if let id { sqlite3_bind_int64(stmt, 3, id) }
+        try finish(stmt)
+        guard id == nil || sqlite3_changes(db) == 1 else { throw StoreError.database }
+        return id ?? sqlite3_last_insert_rowid(db)
+    }
+
+    func deleteSnippet(_ id: Int64) throws {
+        let stmt = try statement("DELETE FROM snippets WHERE id=?")
         defer { sqlite3_finalize(stmt) }
         sqlite3_bind_int64(stmt, 1, id)
         try finish(stmt)
