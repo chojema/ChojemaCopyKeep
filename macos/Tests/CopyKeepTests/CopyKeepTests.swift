@@ -1,6 +1,7 @@
 import Testing
 import AppKit
 import Carbon
+import SQLite3
 @testable import CopyKeep
 
 @Suite(.serialized)
@@ -177,6 +178,46 @@ struct CopyKeepTests {
         expectThrows(try store.saveSnippet(id: 999999, title: "missing", body: "body"))
         expectEqual(try store.snippets().first?.title, "Keep")
         expectEqual(try store.snippets().first?.text, "Keep body")
+    }
+
+    @Test func testTextReplacementRulesAndLegacyMigration() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var db: OpaquePointer?
+        expectEqual(sqlite3_open(directory.appendingPathComponent("history.db").path, &db), SQLITE_OK)
+        expectEqual(sqlite3_exec(db, "CREATE TABLE snippets(id INTEGER PRIMARY KEY,title TEXT NOT NULL,payload BLOB NOT NULL); INSERT INTO snippets VALUES(1,'Legacy',X'6B656570');", nil, nil, nil), SQLITE_OK)
+        sqlite3_close(db)
+        var store: HistoryStore? = try HistoryStore(directory: directory)
+        let legacy: Int64 = 1
+        expectEqual(try store!.snippets().first?.text, "keep")
+        let id = try store!.saveSnippet(title: "Address", body: "서울\nSeoul 😀", abbreviation: ";;addr")
+        expectEqual(try store!.snippets(matching: ";;addr").first?.id, id)
+        for abbreviation in ["x", "한글", "a b", String(repeating: "x", count: 65), ";;addr", ";;ad", ";;addr2"] {
+            expectThrows(try store!.saveSnippet(title: "Bad", body: "discard", abbreviation: abbreviation))
+        }
+        try store!.saveSnippet(id: id, title: "Address", body: "Updated", abbreviation: ";;addr")
+        store = nil; store = try HistoryStore(directory: directory)
+        expectEqual(try store!.snippets().first?.abbreviation, ";;addr")
+        expectEqual(try store!.snippets().first(where: { $0.id == legacy })?.abbreviation, "")
+        try store!.clear()
+        expectEqual(try store!.snippets().count, 2)
+    }
+
+    @Test func testReplacementMatcher() {
+        var matcher = ReplacementMatcher(rules: [";;addr": "서울\nSeoul 😀", "sig": "Signature"])
+        for character in ";;add" { expectTrue(matcher.append(String(character)) == nil) }
+        expectEqual(matcher.append("r")?.1, "서울\nSeoul 😀")
+        matcher.reset()
+        for character in "design" { expectTrue(matcher.append(String(character)) == nil) }
+        matcher.reset()
+        for character in "si" { expectTrue(matcher.append(String(character)) == nil) }
+        expectEqual(matcher.append("g")?.1, "Signature")
+        matcher.reset()
+        for character in ";;ADDR" { expectTrue(matcher.append(String(character)) == nil) }
+        _ = matcher.append("한"); expectEqual(matcher.buffer, "")
+        for _ in 0..<200 { _ = matcher.append("x") }
+        expectEqual(matcher.buffer.count, 65)
+        _ = matcher.append("\u{7f}"); expectEqual(matcher.buffer, "")
     }
 
     @Test func testShortcutValidation() {

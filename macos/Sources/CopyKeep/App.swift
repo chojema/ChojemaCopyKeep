@@ -9,6 +9,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let settings = SettingsController()
     let snippetEditor = SnippetEditorController()
     private let hotKey = HotKey()
+    private let replacement = TextReplacement()
     private var status: NSStatusItem?
     private var timer: Timer?
     private var lastChange = 0
@@ -46,6 +47,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         refreshLanguage()
         hotKey.onPress = { [weak self] in self?.openHistory() }
         if !hotKey.register(key: preferences.keyCode, modifiers: preferences.modifiers) { showAlert("shortcutConflict") }
+        refreshReplacements(prompt: true)
         lastChange = NSPasteboard.general.changeCount
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.collect() }
     }
@@ -60,15 +62,16 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
         popup.onNewSnippet = { [weak self] in self?.editSnippet(nil) }
         popup.onEditSnippet = { [weak self] in self?.editSnippet($0) }
-        snippetEditor.onSave = { [weak self] id, title, body in
+        snippetEditor.onSave = { [weak self] id, title, body, abbreviation in
             guard let self else { return false }
             do {
-                let saved = try self.store.saveSnippet(id: id, title: title, body: body)
+                let saved = try self.store.saveSnippet(id: id, title: title, body: body, abbreviation: abbreviation)
                 self.popup.selectSource(true); self.popup.search.stringValue = ""
                 try self.reloadPopup()
                 if let row = self.popup.items.firstIndex(where: { $0.id == saved }) {
                     self.popup.table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
                 }
+                DispatchQueue.main.async { self.refreshReplacements(prompt: true) }
                 return true
             } catch StoreError.invalidItem { showAlert("invalidSnippet"); return false }
             catch { showAlert("storageError"); return false }
@@ -92,7 +95,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         settings.refreshLanguage()
         snippetEditor.refreshLanguage()
         let menu = NSMenu()
-        for (key, action) in [("history", #selector(openHistory)), ("settings", #selector(openSettings)),
+        for (key, action) in [("history", #selector(openHistory)), ("snippets", #selector(openReplacements)), ("settings", #selector(openSettings)),
                               (paused ? "resume" : "pause", #selector(togglePause)),
                               (checkingUpdate ? "updateChecking" : "checkUpdate", #selector(checkForUpdates)), ("quit", #selector(quit))] {
             if key == "quit" { menu.addItem(.separator()) }
@@ -219,7 +222,7 @@ final class AppController: NSObject, NSApplicationDelegate {
             let alert = NSAlert(); alert.messageText = tr("deleteSnippet"); alert.informativeText = tr("deleteSnippetBody")
             alert.addButton(withTitle: tr("cancel")); alert.addButton(withTitle: tr("delete"))
             NSApp.activate(ignoringOtherApps: true)
-            if alert.runModal() == .alertSecondButtonReturn { modifyHistory { try store.deleteSnippet(item.id) } }
+            if alert.runModal() == .alertSecondButtonReturn { modifyHistory { try store.deleteSnippet(item.id); refreshReplacements(prompt: false) } }
             popup.reopen()
         } else { modifyHistory { try store.delete(item.id) } }
     }
@@ -237,7 +240,40 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openSettings() { popup.close(); settings.show(preferences) }
-    @objc private func togglePause() { lastChange = NSPasteboard.general.changeCount; paused.toggle(); refreshLanguage() }
+    @objc private func togglePause() { lastChange = NSPasteboard.general.changeCount; paused.toggle(); refreshReplacements(prompt: false); refreshLanguage() }
+    @objc private func openReplacements() { popup.close(); popup.selectSource(true); openHistory() }
+
+    private func refreshReplacements(prompt: Bool) {
+        replacement.stop()
+        guard !paused else { return }
+        do {
+            replacement.matcher.rules = Dictionary(uniqueKeysWithValues: try store.snippets().filter { !$0.abbreviation.isEmpty }.map { ($0.abbreviation, $0.text) })
+        } catch { showAlert("storageError"); return }
+        replacement.onReplace = { [weak self] abbreviation, body, process in
+            guard let self, !self.pastePending,
+                  let source = CGEventSource(stateID: .privateState),
+                  let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
+                  let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false),
+                  TextReplacement.selectAbbreviation(abbreviation, process: process) else { return }
+            let board = NSPasteboard.general
+            board.clearContents()
+            guard board.setString(body, forType: .string) else { showAlert("pasteError"); return }
+            self.lastChange = board.changeCount
+            down.flags = .maskCommand; up.flags = .maskCommand
+            down.postToPid(process); up.postToPid(process)
+        }
+        if !replacement.start(), prompt {
+            let alert = NSAlert()
+            alert.messageText = tr("replacementPermissionTitle"); alert.informativeText = tr("replacementPermissionBody")
+            alert.addButton(withTitle: tr("openSettings")); alert.addButton(withTitle: tr("cancel"))
+            NSApp.activate(ignoringOtherApps: true)
+            if alert.runModal() == .alertFirstButtonReturn {
+                let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
+                _ = AXIsProcessTrustedWithOptions(options)
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+        }
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 
     @objc private func checkForUpdates() {
@@ -292,12 +328,35 @@ final class AppController: NSObject, NSApplicationDelegate {
         Localization.shared.language = args[index + 1] == "en" ? "en-US" : "ko-KR"
         let scenario = args.indices.contains(index + 3) ? args[index + 3] : "long"
         let output = URL(fileURLWithPath: args[index + 2])
+        if scenario == "replacement-runtime" {
+            do {
+                store = try HistoryStore(directory: output.deletingPathExtension().appendingPathExtension("data"))
+                try store.saveSnippet(title: "Address", body: "서울특별시\nSeoul 😀", abbreviation: ";;addr")
+                try store.saveSnippet(title: "Signature", body: "Signature", abbreviation: "sig")
+                try store.saveSnippet(title: "Long", body: String(repeating: "긴 문장 Long text.\n", count: 512), abbreviation: ";;long")
+                wireActions(); refreshReplacements(prompt: false)
+                let report: [String: Any] = ["accessibility": AXIsProcessTrusted(), "ready": true]
+                try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted]).write(to: output)
+                let deadline = Date().addingTimeInterval(45)
+                timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                    if FileManager.default.fileExists(atPath: output.appendingPathExtension("stop").path) || Date() >= deadline {
+                        timer.invalidate(); NSApp.terminate(nil)
+                    }
+                }
+            } catch { exit(1) }
+            return
+        }
+        if scenario == "replacement-status" {
+            let report: [String: Any] = ["accessibility": AXIsProcessTrusted(), "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""]
+            try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]).write(to: output)
+            NSApp.terminate(nil); return
+        }
         if scenario.hasPrefix("update-") {
             Task { @MainActor in
                 let latest: ReleaseVersion?
                 if scenario == "update-live" { latest = try? await self.updateChecker.latest() }
-                else { latest = scenario == "update-error" ? nil : ReleaseVersion(scenario == "update-available" ? "0.4.0" : "0.3.0") }
-                let alert = makeUpdateAlert(current: "0.3.0", latest: latest)
+                else { latest = scenario == "update-error" ? nil : ReleaseVersion(scenario == "update-available" ? "0.5.0" : "0.4.0") }
+                let alert = makeUpdateAlert(current: "0.4.0", latest: latest)
                 alert.layout()
                 alert.window.center()
                 alert.window.makeKeyAndOrderFront(nil)
@@ -377,8 +436,10 @@ final class AppController: NSObject, NSApplicationDelegate {
                 popup.newSnippet()
                 snippetEditor.titleField.stringValue = "인사 Greeting"
                 snippetEditor.body.string = "첫 번째 줄\nSecond line"
+                snippetEditor.abbreviationField.stringValue = ";;addr"
                 snippetEditor.saveChanges()
                 try check(try store.snippets().count == 2)
+                try check(try store.snippets(matching: ";;addr").first?.abbreviation == ";;addr")
                 popup.editSnippet(); snippetEditor.body.string = "Discard edit"; snippetEditor.close()
                 try check(try store.snippets().first?.text == "첫 번째 줄\nSecond line")
                 popup.editSnippet(); snippetEditor.titleField.stringValue = "수정된 인사 Greeting"

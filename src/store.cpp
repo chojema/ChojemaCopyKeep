@@ -1,4 +1,5 @@
 #include "store.h"
+#include "replacement.h"
 #include <bcrypt.h>
 #include <algorithm>
 #include <array>
@@ -66,6 +67,11 @@ Store::Store(const std::filesystem::path& folder) {
              "CREATE INDEX IF NOT EXISTS clip_rank ON clips(rank DESC);"
              "CREATE TABLE IF NOT EXISTS snippets(id INTEGER PRIMARY KEY,title TEXT NOT NULL,payload TEXT NOT NULL);"
              "CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);");
+        bool migrated=false;
+        { Statement columns(db_, "SELECT name FROM pragma_table_info('snippets') WHERE name='abbreviation'");
+          migrated=sqlite3_step(columns.p)==SQLITE_ROW; }
+        if (!migrated) exec("ALTER TABLE snippets ADD COLUMN abbreviation TEXT NOT NULL DEFAULT ''");
+        exec("CREATE UNIQUE INDEX IF NOT EXISTS snippet_abbreviation ON snippets(abbreviation) WHERE abbreviation<>''");
     } catch (...) { sqlite3_close(db_); db_ = nullptr; throw; }
 }
 Store::~Store() { if (db_) sqlite3_close(db_); }
@@ -119,7 +125,7 @@ std::vector<Item> Store::list() {
     return out;
 }
 std::vector<Item> Store::snippets(const std::wstring& query) {
-    Statement select(db_, "SELECT id,title,length(payload) FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 ORDER BY id DESC");
+    Statement select(db_, "SELECT id,title,length(payload),abbreviation FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 OR instr(lower(abbreviation),lower(?1))>0 ORDER BY id DESC");
     auto filter=utf8(query);
     sqlite3_bind_text(select.p,1,filter.c_str(),-1,SQLITE_TRANSIENT);
     std::vector<Item> out;
@@ -127,21 +133,32 @@ std::vector<Item> Store::snippets(const std::wstring& query) {
     while ((status=sqlite3_step(select.p))==SQLITE_ROW) {
         Item item; item.id=sqlite3_column_int64(select.p,0);
         item.preview=wide(reinterpret_cast<const char*>(sqlite3_column_text(select.p,1)));
-        item.size=sqlite3_column_int64(select.p,2); out.push_back(std::move(item));
+        item.size=sqlite3_column_int64(select.p,2); item.abbreviation=wide(reinterpret_cast<const char*>(sqlite3_column_text(select.p,3))); out.push_back(std::move(item));
     }
     if (status!=SQLITE_DONE) throw std::runtime_error("Snippet query failed");
     return out;
 }
-long long Store::save_snippet(long long id, const std::wstring& title, const std::wstring& body) {
+long long Store::save_snippet(long long id, const std::wstring& title, const std::wstring& body, const std::wstring& abbreviation) {
     if (id<0 || title.empty() || title.size()>80 || title.find_first_not_of(L" \t\r\n")==std::wstring::npos ||
         title.find_first_of(L"\r\n\t")!=std::wstring::npos || title.find(L'\0')!=std::wstring::npos ||
         body.empty() || body.size()>65536 || body.find_first_not_of(L" \t\r\n")==std::wstring::npos || body.find(L'\0')!=std::wstring::npos)
         throw std::invalid_argument("Invalid snippet");
+    if (!ReplacementMatcher::valid(abbreviation)) throw std::invalid_argument("Invalid abbreviation");
+    auto shortcut=utf8(abbreviation);
+    if (!abbreviation.empty()) {
+        Statement conflict(db_, "SELECT 1 FROM snippets WHERE abbreviation<>'' AND id<>?1 AND (substr(abbreviation,1,length(?2))=?2 OR substr(?2,1,length(abbreviation))=abbreviation) LIMIT 1");
+        sqlite3_bind_int64(conflict.p,1,id);
+        sqlite3_bind_text(conflict.p,2,shortcut.c_str(),-1,SQLITE_TRANSIENT);
+        int status=sqlite3_step(conflict.p);
+        if (status==SQLITE_ROW) throw std::invalid_argument("Conflicting abbreviation");
+        if (status!=SQLITE_DONE) throw std::runtime_error("Abbreviation query failed");
+    }
     auto label=utf8(title), content=utf8(body);
     if (label.empty() || content.empty()) throw std::runtime_error("Snippet encoding failed");
-    Statement save(db_,id?"UPDATE snippets SET title=?1,payload=?2 WHERE id=?3":"INSERT INTO snippets(title,payload) VALUES(?1,?2)");
+    Statement save(db_,id?"UPDATE snippets SET title=?1,payload=?2,abbreviation=?4 WHERE id=?3":"INSERT INTO snippets(title,payload,abbreviation) VALUES(?1,?2,?4)");
     sqlite3_bind_text(save.p,1,label.c_str(),-1,SQLITE_TRANSIENT);
     sqlite3_bind_text(save.p,2,content.c_str(),static_cast<int>(content.size()),SQLITE_TRANSIENT);
+    sqlite3_bind_text(save.p,4,shortcut.c_str(),-1,SQLITE_TRANSIENT);
     if (id) sqlite3_bind_int64(save.p,3,id);
     save.done();
     if (id && sqlite3_changes(db_)!=1) throw std::runtime_error("Snippet no longer exists");

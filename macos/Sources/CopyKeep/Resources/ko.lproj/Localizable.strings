@@ -23,8 +23,8 @@
 "save" = "저장";
 "cancel" = "취소";
 "ok" = "확인";
-"pause" = "수집 일시 중지";
-"resume" = "수집 다시 시작";
+"pause" = "기록 수집·텍스트 대치 일시 중지";
+"resume" = "기록 수집·텍스트 대치 다시 시작";
 "quit" = "종료";
 "paused" = "수집 일시 중지됨";
 "running" = "수집 중";
@@ -45,19 +45,19 @@
 "sampleShort" = "다시 쓰고 싶은 문장";
 "sampleLong" = "텍스트와 이미지의 복사 기록을 보관하고 단축키로 선택하여 원래 입력 위치에 빠르게 붙여넣습니다. 긴 내용은 오른쪽 미리보기에서 확인할 수 있습니다.";
 "sampleMultiline" = "프로젝트 메모\n첫 번째 항목: 복사 기록 확인\n두 번째 항목: 선택하고 붙여넣기\n세 번째 항목: 필요한 기록만 보관";
-"snippets" = "상용구";
-"source" = "기록 / 상용구";
-"searchSnippets" = "상용구 검색";
-"newSnippet" = "새 상용구";
+"snippets" = "텍스트 대치";
+"source" = "기록 / 텍스트 대치";
+"searchSnippets" = "텍스트 대치 검색";
+"newSnippet" = "새 텍스트 대치";
 "editSnippet" = "편집";
-"saveSnippet" = "상용구로 저장";
+"saveSnippet" = "텍스트 대치로 저장";
 "snippetTitle" = "제목";
 "snippetBody" = "내용";
-"snippetHelp" = "제목 80자 · 내용 65,536자 · 기록 삭제와 별도 보관";
-"invalidSnippet" = "공백이 아닌 제목과 내용을 입력하세요. 제목은 한 줄 80자, 내용은 65,536자까지 지원합니다. 보조 문자는 두 글자로 계산될 수 있습니다.";
-"emptySnippets" = "저장된 상용구가 없습니다.\n새 상용구를 만들거나 텍스트 기록에서 저장하세요.";
+"snippetHelp" = "약어: 영문·숫자·기호 2~64자(선택) · 대소문자 구분\n약어가 비어 있으면 목록에서 선택해 붙여넣습니다.";
+"invalidSnippet" = "제목(한 줄 80자)과 내용(65,536자)을 입력하세요. 약어는 공백 없는 영문·숫자·기호 2~64자이며, 다른 약어와 같거나 서로의 접두어가 될 수 없습니다.";
+"emptySnippets" = "저장된 텍스트 대치가 없습니다.\n새 텍스트 대치를 만들거나 텍스트 기록에서 저장하세요.";
 "noSnippets" = "검색 결과가 없습니다.";
-"deleteSnippet" = "선택한 상용구를 삭제할까요?";
+"deleteSnippet" = "선택한 텍스트 대치를 삭제할까요?";
 "deleteSnippetBody" = "이 작업은 되돌릴 수 없습니다. 복사 기록은 유지됩니다.";
 "checkUpdate" = "업데이트 확인";
 "updateChecking" = "업데이트 확인 중…";
@@ -68,3 +68,7 @@
 "latestVersion" = "최신 정식 버전:";
 "openRelease" = "다운로드 페이지 열기";
 "updateOpenError" = "브라우저를 열지 못했습니다. README의 다운로드 링크에서 최신 버전을 확인하세요.";
+
+"abbreviation" = "약어(선택)";
+"replacementPermissionTitle" = "텍스트 대치 권한";
+"replacementPermissionBody" = "약어 감지와 자동 입력에 손쉬운 사용 권한이 필요합니다. 이 앱을 허용한 뒤 앱을 다시 실행하세요. 입력 감지 내용은 저장하거나 전송하지 않습니다.";

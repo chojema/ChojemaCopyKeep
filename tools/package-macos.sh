@@ -2,9 +2,9 @@
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_BUNDLE="$ROOT_DIR/build/macos/Chojema CopyKeep.app"
-DIST_DIR="$ROOT_DIR/dist/macos-v0.3.0"
+DIST_DIR="$ROOT_DIR/dist/macos-v0.4.0"
 STAGE_DIR="$DIST_DIR/package"
-test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")" = "0.3.0"
+test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_BUNDLE/Contents/Info.plist")" = "0.4.0"
 ARCHS="$(xcrun lipo -archs "$APP_BUNDLE/Contents/MacOS/ChojemaCopyKeep")"
 [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]]
 codesign --verify --deep --strict "$APP_BUNDLE"
@@ -13,7 +13,7 @@ ditto "$APP_BUNDLE" "$STAGE_DIR/Chojema CopyKeep.app"
 cp "$ROOT_DIR/LICENSE" "$ROOT_DIR/README.md" "$ROOT_DIR/README.en.md" "$STAGE_DIR/"
 cp "$ROOT_DIR/docs/BUILD.ko.md" "$ROOT_DIR/docs/BUILD.en.md" \
   "$ROOT_DIR/docs/PRIVACY.ko.md" "$ROOT_DIR/docs/PRIVACY.en.md" "$STAGE_DIR/docs/"
-ditto -c -k --keepParent --norsrc "$STAGE_DIR" "$DIST_DIR/ChojemaCopyKeep-macos-universal-0.3.0.zip"
+ditto -c -k --keepParent --norsrc "$STAGE_DIR" "$DIST_DIR/ChojemaCopyKeep-macos-universal-0.4.0.zip"
 cd "$DIST_DIR"
-shasum -a 256 ChojemaCopyKeep-macos-universal-0.3.0.zip > SHA256SUMS-macos.txt
-echo "$DIST_DIR/ChojemaCopyKeep-macos-universal-0.3.0.zip"
+shasum -a 256 ChojemaCopyKeep-macos-universal-0.4.0.zip > SHA256SUMS-macos.txt
+echo "$DIST_DIR/ChojemaCopyKeep-macos-universal-0.4.0.zip"

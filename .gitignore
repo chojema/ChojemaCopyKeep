@@ -52,6 +52,7 @@
 /macos/Sources/CopyKeep/*
 !/macos/Sources/CopyKeep/App.swift
 !/macos/Sources/CopyKeep/Update.swift
+!/macos/Sources/CopyKeep/TextReplacement.swift
 !/macos/Sources/CopyKeep/Clipboard.swift
 !/macos/Sources/CopyKeep/Localization.swift
 !/macos/Sources/CopyKeep/Popup.swift
@@ -76,3 +77,7 @@
 /script/*
 !/script/build_and_run.sh
 !/.github/workflows/macos.yml
+!/src/replacement.h
+!/src/replacement_windows.h
+!/tests/replacement_test.cpp
+!/tests/replacement_ui_test.cpp

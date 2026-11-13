@@ -12,8 +12,8 @@ The app targets x64 Windows 10 and Windows 11. Choose either option; neither req
 
 | Distribution | File | Usage |
 | --- | --- | --- |
-| Installer | `ChojemaCopyKeep-windows-x64-setup-0.3.0.exe` | Install, then launch from the Start menu. Remove it through Installed apps in Windows Settings. |
-| Standalone | `ChojemaCopyKeep-windows-x64-portable-0.3.0.zip` | Extract and run `ChojemaCopyKeep.exe`. No installation or uninstall registration is required. |
+| Installer | `ChojemaCopyKeep-windows-x64-setup-0.4.0.exe` | Install, then launch from the Start menu. Remove it through Installed apps in Windows Settings. |
+| Standalone | `ChojemaCopyKeep-windows-x64-portable-0.4.0.zip` | Extract and run `ChojemaCopyKeep.exe`. No installation or uninstall registration is required. |
 
 The default installation directory is `%LOCALAPPDATA%\Programs\ChojemaCopyKeep`. Quit the running app through its notification area menu before installing, updating, or uninstalling. Also quit the existing app before launching a new standalone version. Only one copy runs at a time; a new executable exits if another copy is already running.
 
@@ -60,17 +60,17 @@ On Windows, right-click the notification area icon; on macOS, click the menu bar
 
 The app contacts GitHub only when you select this menu item. Connection failures are reported separately and never shown as an up-to-date result. This feature is available in Windows and macOS 0.3.0 or later. On macOS, quit the app, extract the download, and replace the existing app in Applications.
 
-## Snippets
+## Text replacement
 
-Snippets are available in Windows 0.2.0 and macOS 0.2.0.
+Windows and macOS 0.4.0 replace a typed abbreviation with registered text automatically. For example, assign a multiline address to `;;addr`; typing the final character and releasing its key inserts the address in another app without opening the popup.
 
-- Switch from `History` to `Snippets` in the popup. Search by part of a title or content. English searches are case-insensitive.
-- Use `New snippet` to enter a title and content, or `Edit` to update the selected snippet. Titles support one line up to 80 characters; content supports multiple lines up to 65,536 characters. Supplementary characters may count as two characters.
-- Select a text history item and choose `Save as snippet` to edit and save a separate copy. Images and text exceeding the snippet limit cannot be saved as snippets.
-- Press the Down arrow in the search field to move to the list, then press Enter or click an item to paste into the original app. Clear the search field to show all snippets.
-- Delete a snippet with the Delete key or Delete button, then confirm. The history limit and `Clear all` in History do not affect snippets.
-
-Snippets are stored in the same local database without app-level encryption. Automatic abbreviation expansion, variables, and script execution are not provided. On macOS, use the `Clipboard history / Snippets` selector in the popup. The Backspace (⌫) key also deletes the selected item.
+- Open `Text replacements` from the menu or popup, then choose `New text replacement`. Enter a title, abbreviation and content. Content can include multiple lines, Korean and emoji, up to 65,536 UTF-16 units.
+- Abbreviations are case-sensitive and contain 2–64 nonspace ASCII letters, digits or symbols. Duplicate abbreviations and abbreviations that prefix one another are rejected. Use a distinctive prefix such as `;;addr` or `;;sig`. Abbreviations starting with a letter or digit do not expand inside another word.
+- Type abbreviations with an English input source. Active Korean IME composition is excluded; replacement content can include Korean.
+- Existing snippets are preserved. Add an abbreviation to enable automatic replacement, or leave it blank to paste from the list only. Search titles, content or abbreviations; edit, save from history or delete individual entries with confirmation.
+- Clearing history and applying its limit do not affect replacements. The pause menu pauses both collection and automatic replacement.
+- macOS requires Accessibility permission. Follow the app's permission prompt, then relaunch it. Password fields and secure input are excluded. If an app does not expose the insertion point and exact abbreviation through accessibility APIs, the original input is left unchanged. Windows input can be restricted in elevated apps.
+- Replacement copies the registered content to the system clipboard and pastes it. This changes the previous clipboard content; the replacement itself is not added to clipboard history. Date variables and scripts are not supported.
 
 ## Data Storage and Privacy
 
@@ -107,7 +107,7 @@ bash tools/build-macos.sh universal
 bash tools/package-macos.sh
 ```
 
-The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.3.0/`. Use the shared `v0.3.0` tag for Windows and macOS 0.3.0 source.
+The app is generated at `build/macos/Chojema CopyKeep.app`, and the ZIP in `dist/macos-v0.4.0/`. Use the shared `v0.4.0` tag for Windows and macOS 0.4.0 source.
 
 ## License
 

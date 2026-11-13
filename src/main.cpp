@@ -3,6 +3,7 @@
 #include "ids.h"
 #include "ui.h"
 #include "update.h"
+#include "replacement_windows.h"
 #include <dwmapi.h>
 #include <uxtheme.h>
 #include <windowsx.h>
@@ -21,7 +22,7 @@
 
 using namespace copykeep;
 namespace {
-constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2;
+constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2, replacement_message = WM_APP + 3;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
 constexpr int mode_id=305, search_id=306, new_snippet_id=307, edit_snippet_id=308, save_snippet_id=309;
 constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, update_timer = 13, hover_delay = 250;
@@ -100,6 +101,7 @@ std::wstring window_text(HWND window) {
 class App {
 public:
     Store store;
+    TextReplacement replacement;
     std::future<Version> updateCheck;
     bool english=false, promote=true, paused=false, testing=false, settingsOpen=false;
     UINT modifiers=MOD_CONTROL|MOD_SHIFT, key='Z';
@@ -107,7 +109,7 @@ public:
     HWND mode=nullptr, search=nullptr, searchLabel=nullptr, snippetButtons[3]{};
     bool snippetsMode=false, pendingSnippet=false;
     long long editingSnippet=0;
-    std::wstring draftTitle, draftBody;
+    std::wstring draftTitle, draftBody, draftAbbreviation;
     HFONT font=nullptr, smallFont=nullptr, titleFont=nullptr;
     HBITMAP previewBitmap=nullptr;
     ui::Palette colors;
@@ -171,6 +173,7 @@ public:
             if (!AddClipboardFormatListener(host)) throw std::runtime_error("Clipboard listener failed");
             tray(true);
             if (!RegisterHotKey(host,1,modifiers|MOD_NOREPEAT,key)) notify(IDS_HOTKEY_ERROR);
+            refresh_replacements();
         }
     }
     void fonts() {
@@ -420,7 +423,7 @@ public:
             int result=MessageBoxW(popup,t(IDS_SNIPPET_DELETE_CONFIRM).c_str(),L"Chojema CopyKeep",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2);
             settingsOpen=false; if (result!=IDYES) return;
         }
-        store.erase(items[index].id,snippetsMode); refresh(index); SetFocus(list);
+        store.erase(items[index].id,snippetsMode); refresh_replacements(); refresh(index); SetFocus(list);
     }
     void clear_all() {
         if (snippetsMode) return;
@@ -429,9 +432,10 @@ public:
     void edit_snippet(bool create) {
         int index=selected();
         if ((!create || !snippetsMode) && (index<0 || items[index].kind!=0)) return;
-        editingSnippet=create?0:items[index].id; draftTitle.clear(); draftBody.clear();
+        editingSnippet=create?0:items[index].id; draftTitle.clear(); draftBody.clear(); draftAbbreviation.clear();
         if (!create || !snippetsMode) {
             draftTitle=items[index].preview.substr(0,80);
+            if (snippetsMode && !create) draftAbbreviation=items[index].abbreviation;
             auto bytes=store.payload(items[index].id,snippetsMode); draftBody=wide(std::string(bytes.begin(),bytes.end()));
         }
         if (draftBody.size()>65536) {
@@ -443,6 +447,7 @@ public:
         INT_PTR result=DialogBoxParamW(instance,MAKEINTRESOURCEW(IDD_SNIPPET),popup,snippet_proc,reinterpret_cast<LPARAM>(this));
         settingsOpen=false; draftTitle.clear(); draftBody.clear();
         if (result==IDOK) {
+            refresh_replacements();
             snippetsMode=true; SendMessageW(mode,CB_SETCURSEL,1,0); SetWindowTextW(search,L"");
             refresh();
             for (int i=0;i<static_cast<int>(items.size());++i) if (items[i].id==editingSnippet) {
@@ -457,7 +462,7 @@ public:
         if (message==WM_INITDIALOG) {
             self=reinterpret_cast<App*>(l); SetWindowLongPtrW(dialog,DWLP_USER,reinterpret_cast<LONG_PTR>(self));
             SetWindowTextW(dialog,self->t(self->editingSnippet?IDS_EDIT_SNIPPET:IDS_NEW_SNIPPET).c_str());
-            const std::pair<int,UINT> labels[]={{IDC_SNIPPET_TITLE_LABEL,IDS_SNIPPET_TITLE},{IDC_SNIPPET_BODY_LABEL,IDS_SNIPPET_BODY},{IDC_SNIPPET_HELP,IDS_SNIPPET_HELP},{IDOK,IDS_SAVE},{IDCANCEL,IDS_CANCEL}};
+            const std::pair<int,UINT> labels[]={{IDC_ABBREVIATION_LABEL,IDS_ABBREVIATION},{IDC_SNIPPET_TITLE_LABEL,IDS_SNIPPET_TITLE},{IDC_SNIPPET_BODY_LABEL,IDS_SNIPPET_BODY},{IDC_SNIPPET_HELP,IDS_SNIPPET_HELP},{IDOK,IDS_SAVE},{IDCANCEL,IDS_CANCEL}};
             for (auto [control,id]:labels) SetDlgItemTextW(dialog,control,self->t(id).c_str());
             EnumChildWindows(dialog,[](HWND child,LPARAM context)->BOOL {
                 auto* app=reinterpret_cast<App*>(context); SendMessageW(child,WM_SETFONT,reinterpret_cast<WPARAM>(app->font),TRUE);
@@ -465,6 +470,8 @@ public:
             },reinterpret_cast<LPARAM>(self));
             for (int id:{IDOK,IDCANCEL}) SetWindowSubclass(GetDlgItem(dialog,id),button_proc,1,reinterpret_cast<DWORD_PTR>(self));
             SendMessageW(dialog,DM_SETDEFID,IDOK,0);
+            SendDlgItemMessageW(dialog,IDC_ABBREVIATION,EM_SETLIMITTEXT,64,0);
+            SetDlgItemTextW(dialog,IDC_ABBREVIATION,self->draftAbbreviation.c_str());
             SendDlgItemMessageW(dialog,IDC_SNIPPET_TITLE,EM_SETLIMITTEXT,80,0);
             SendDlgItemMessageW(dialog,IDC_SNIPPET_BODY,EM_SETLIMITTEXT,65536,0);
             SetDlgItemTextW(dialog,IDC_SNIPPET_TITLE,self->draftTitle.c_str()); SetDlgItemTextW(dialog,IDC_SNIPPET_BODY,self->draftBody.c_str());
@@ -489,7 +496,7 @@ public:
             if (message==WM_CLOSE || (message==WM_COMMAND && LOWORD(w)==IDCANCEL)) { EndDialog(dialog,IDCANCEL); return TRUE; }
             if (message==WM_COMMAND && LOWORD(w)==IDOK) {
                 auto title=window_text(GetDlgItem(dialog,IDC_SNIPPET_TITLE)), body=window_text(GetDlgItem(dialog,IDC_SNIPPET_BODY));
-                self->editingSnippet=self->store.save_snippet(self->editingSnippet,title,body);
+                self->editingSnippet=self->store.save_snippet(self->editingSnippet,title,body,window_text(GetDlgItem(dialog,IDC_ABBREVIATION)));
                 EndDialog(dialog,IDOK); return TRUE;
             }
         } catch (const std::invalid_argument&) { MessageBoxW(dialog,self->t(IDS_BAD_SNIPPET).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONINFORMATION); return TRUE; }
@@ -574,18 +581,43 @@ public:
         } catch (...) { MessageBoxW(dialog,self->t(IDS_ERROR).c_str(),L"Chojema CopyKeep",MB_OK|MB_ICONERROR); }
         return FALSE;
     }
+    void refresh_replacements() {
+        replacement.stop(); replacement.matcher.rules.clear();
+        if (testing || paused) return;
+        for (const auto& item:store.snippets()) if (!item.abbreviation.empty()) {
+            auto bytes=store.payload(item.id,true);
+            replacement.matcher.rules.push_back({item.abbreviation,wide(std::string(bytes.begin(),bytes.end()))});
+        }
+        if (!replacement.start(host,replacement_message)) notify(IDS_REPLACEMENT_ERROR);
+    }
+    void replace_text(ULONG_PTR generation) {
+        if (paused || pendingId || settingsOpen) return;
+        auto rule=replacement.prepare(generation); if (!rule) return;
+        if (!OpenClipboard(host)) { notify(IDS_PASTE_ERROR); return; }
+        bool written=EmptyClipboard() && set_clipboard_bytes(CF_UNICODETEXT,rule->body.c_str(),(rule->body.size()+1)*sizeof(wchar_t));
+        CloseClipboard(); lastSequence=GetClipboardSequenceNumber();
+        if (!written) { notify(IDS_PASTE_ERROR); return; }
+        INPUT input[4]{}; for (auto& entry:input) entry.type=INPUT_KEYBOARD;
+        input[0].ki.wVk=VK_CONTROL; input[1].ki.wVk='V'; input[2].ki.wVk='V'; input[2].ki.dwFlags=KEYEVENTF_KEYUP;
+        input[3].ki.wVk=VK_CONTROL; input[3].ki.dwFlags=KEYEVENTF_KEYUP;
+        if (SendInput(4,input,sizeof(INPUT))!=4) {
+            INPUT release{}; release.type=INPUT_KEYBOARD; release.ki.wVk=VK_CONTROL; release.ki.dwFlags=KEYEVENTF_KEYUP;
+            SendInput(1,&release,sizeof(INPUT)); notify(IDS_PASTE_ERROR);
+        }
+    }
     void menu() {
         HMENU menu=CreatePopupMenu();
-        AppendMenuW(menu,MF_STRING,1,t(IDS_APP).c_str()); AppendMenuW(menu,MF_STRING,2,t(IDS_SETTINGS).c_str());
+        AppendMenuW(menu,MF_STRING,1,t(IDS_APP).c_str()); AppendMenuW(menu,MF_STRING,7,t(IDS_SNIPPETS).c_str()); AppendMenuW(menu,MF_STRING,2,t(IDS_SETTINGS).c_str());
         AppendMenuW(menu,MF_STRING,3,t(paused?IDS_RESUME:IDS_PAUSE).c_str()); AppendMenuW(menu,MF_STRING,4,t(IDS_ABOUT).c_str());
         AppendMenuW(menu,MF_STRING|(updateCheck.valid()?MF_GRAYED:0),6,t(updateCheck.valid()?IDS_UPDATE_CHECKING:IDS_CHECK_UPDATE).c_str());
         AppendMenuW(menu,MF_SEPARATOR,0,nullptr); AppendMenuW(menu,MF_STRING,5,t(IDS_QUIT).c_str());
         POINT point{}; GetCursorPos(&point); SetForegroundWindow(host);
         UINT choice=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,point.x,point.y,0,host,nullptr); DestroyMenu(menu);
-        if (choice==1) show(); else if (choice==2) settings(); else if (choice==3) paused=!paused;
+        if (choice==1) show(); else if (choice==2) settings(); else if (choice==3) { paused=!paused; refresh_replacements(); }
         else if (choice==4) MessageBoxW(popup,t(IDS_AUTHOR).c_str(),L"Chojema CopyKeep",MB_OK);
         else if (choice==5) DestroyWindow(host);
         else if (choice==6) start_update_check();
+        else if (choice==7) { snippetsMode=true; SendMessageW(mode,CB_SETCURSEL,1,0); show(); }
     }
     void start_update_check() {
         if (updateCheck.valid() || testing) return;
@@ -688,6 +720,7 @@ public:
         RECT label=row; label.left+=scale(40); label.right-=scale(12);
         SelectObject(dc,font); SetBkMode(dc,TRANSPARENT); SetTextColor(dc,foreground);
         auto summary=item.kind?t(IDS_IMAGE)+L"   "+std::to_wstring(item.width)+L" × "+std::to_wstring(item.height):item.preview;
+        if (snippetsMode && !item.abbreviation.empty()) summary+=L"  ·  "+item.abbreviation;
         DrawTextW(dc,summary.c_str(),-1,&label,DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
     }
     static LRESULT CALLBACK button_proc(HWND window,UINT message,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR) {
@@ -726,6 +759,7 @@ public:
         if (!self) return DefWindowProcW(window,message,w,l);
         try {
             if (message==WM_CLIPBOARDUPDATE) { self->capture(); return 0; }
+            if (message==replacement_message) { self->replace_text(w); return 0; }
             if (message==WM_HOTKEY) { self->show(); return 0; }
             if (message==WM_TIMER && w==capture_timer) { self->capture(); return 0; }
             if (message==WM_TIMER && w==paste_timer) { self->finish_paste(); return 0; }
@@ -851,6 +885,17 @@ int self_test(const std::filesystem::path& root) {
         check(store.payload(first)==bytes,"Unicode payload round trip");
         store.setting("language",std::string("en")); check(store.setting("language","ko")=="en","Language setting");
         snippet=store.save_snippet(0,L"인사 Greeting",L"안녕하세요.\r\n두 번째 줄");
+        check(store.snippets().front().abbreviation.empty(),"Legacy snippet has no abbreviation");
+        auto replacementId=store.save_snippet(0,L"Address",L"서울\r\nSeoul 😀",L";;addr");
+        check(store.snippets(L";;addr").front().id==replacementId,"Abbreviation search");
+        for (auto invalid:{L"a",L"a b",L"한글",L";;addr",L";;ad",L";;addr2"}) {
+            bool rejected=false;
+            try { store.save_snippet(0,L"Bad",L"discard",invalid); } catch (const std::invalid_argument&) { rejected=true; }
+            check(rejected,"Invalid or ambiguous abbreviation rejected");
+        }
+        store.save_snippet(replacementId,L"Address",L"updated",L";;addr");
+        check(store.snippets(L";;addr").front().abbreviation==L";;addr","Abbreviation update preserves mapping");
+        store.erase(replacementId,true);
         auto snippetBytes=utf8(L"안녕하세요.\r\n두 번째 줄");
         check(store.snippets().size()==1 && store.snippets()[0].preview==L"인사 Greeting","Snippet title");
         check(store.payload(snippet,true)==Bytes(snippetBytes.begin(),snippetBytes.end()),"Snippet multiline payload");

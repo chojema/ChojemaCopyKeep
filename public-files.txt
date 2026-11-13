@@ -44,3 +44,8 @@ src/update.h
 src/update.cpp
 tests/update_test.cpp
 macos/Sources/CopyKeep/Update.swift
+macos/Sources/CopyKeep/TextReplacement.swift
+src/replacement.h
+src/replacement_windows.h
+tests/replacement_test.cpp
+tests/replacement_ui_test.cpp

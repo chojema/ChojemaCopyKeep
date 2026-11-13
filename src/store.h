@@ -15,6 +15,7 @@ struct Item {
     std::wstring preview;
     int width = 0, height = 0;
     long long size = 0;
+    std::wstring abbreviation;
 };
 class Store {
     sqlite3* db_ = nullptr;
@@ -29,7 +30,7 @@ public:
     long long put(int kind, const Bytes& data, const std::wstring& preview, int width = 0, int height = 0);
     std::vector<Item> list();
     std::vector<Item> snippets(const std::wstring& query = L"");
-    long long save_snippet(long long id, const std::wstring& title, const std::wstring& body);
+    long long save_snippet(long long id, const std::wstring& title, const std::wstring& body, const std::wstring& abbreviation = L"");
     Bytes payload(long long id, bool snippet = false);
     void use(long long id, bool promote);
     void erase(long long id, bool snippet = false);

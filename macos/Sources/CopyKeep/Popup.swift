@@ -264,6 +264,7 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
         icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tr(item.kind))
         icon.contentTintColor = Palette.accent
         let label = NSTextField(labelWithString: item.kind == "text" ? (item.title ?? item.text).components(separatedBy: .newlines).joined(separator: " ").replacingOccurrences(of: "\t", with: " ") : tr("image"))
+        if !item.abbreviation.isEmpty { label.stringValue += "  ·  " + item.abbreviation }
         label.frame = NSRect(x: 36, y: 8, width: 332, height: 20)
         label.font = .systemFont(ofSize: 14)
         label.lineBreakMode = .byTruncatingTail
@@ -367,6 +368,8 @@ final class PopupController: NSObject, NSTableViewDataSource, NSTableViewDelegat
 final class SnippetEditorController: NSObject {
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 570, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
     let titleField = NSTextField()
+    let abbreviationField = NSTextField()
+    private let abbreviationLabel = NSTextField(labelWithString: "")
     let body = NSTextView()
     private let titleLabel = NSTextField(labelWithString: "")
     private let bodyLabel = NSTextField(labelWithString: "")
@@ -374,7 +377,7 @@ final class SnippetEditorController: NSObject {
     private let save = NSButton()
     private let cancel = NSButton()
     private var id: Int64?
-    var onSave: ((Int64?, String, String) -> Bool)?
+    var onSave: ((Int64?, String, String, String) -> Bool)?
     var onFinish: (() -> Void)?
 
     override init() {
@@ -385,8 +388,10 @@ final class SnippetEditorController: NSObject {
         window.backgroundColor = Palette.background
         titleLabel.frame = NSRect(x: 24, y: 395, width: 520, height: 21)
         titleField.frame = NSRect(x: 24, y: 360, width: 520, height: 26)
-        bodyLabel.frame = NSRect(x: 24, y: 321, width: 520, height: 21)
-        let scroll = NSScrollView(frame: NSRect(x: 24, y: 100, width: 520, height: 212))
+        abbreviationLabel.frame = NSRect(x: 24, y: 324, width: 180, height: 21)
+        abbreviationField.frame = NSRect(x: 205, y: 320, width: 339, height: 26)
+        bodyLabel.frame = NSRect(x: 24, y: 282, width: 520, height: 21)
+        let scroll = NSScrollView(frame: NSRect(x: 24, y: 100, width: 520, height: 173))
         scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder
         scroll.documentView = body
         body.frame = NSRect(x: 0, y: 0, width: 500, height: 210)
@@ -402,7 +407,7 @@ final class SnippetEditorController: NSObject {
         save.bezelStyle = .rounded; save.target = self; save.action = #selector(saveChanges); save.keyEquivalent = "\r"
         cancel.frame = NSRect(x: 314, y: 15, width: 110, height: 32)
         cancel.bezelStyle = .rounded; cancel.target = self; cancel.action = #selector(close); cancel.keyEquivalent = "\u{1b}"
-        [titleLabel, titleField, bodyLabel, scroll, help, save, cancel].forEach(root.addSubview)
+        [titleLabel, titleField, abbreviationLabel, abbreviationField, bodyLabel, scroll, help, save, cancel].forEach(root.addSubview)
         window.delegate = self
         refreshLanguage()
     }
@@ -410,6 +415,8 @@ final class SnippetEditorController: NSObject {
     func refreshLanguage() {
         window.title = tr(id == nil ? "newSnippet" : "editSnippet")
         titleLabel.stringValue = tr("snippetTitle"); titleField.setAccessibilityLabel(tr("snippetTitle"))
+        abbreviationLabel.stringValue = tr("abbreviation"); abbreviationField.setAccessibilityLabel(tr("abbreviation"))
+        abbreviationField.placeholderString = ";;addr"
         bodyLabel.stringValue = tr("snippetBody"); body.setAccessibilityLabel(tr("snippetBody"))
         help.stringValue = tr("snippetHelp"); save.title = tr("save"); cancel.title = tr("cancel")
     }
@@ -417,15 +424,16 @@ final class SnippetEditorController: NSObject {
     func show(_ item: HistoryItem?) {
         id = item?.isSnippet == true ? item?.id : nil
         titleField.stringValue = item?.title ?? String((item?.text ?? "").replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\t", with: " ").prefix(80))
+        abbreviationField.stringValue = item?.abbreviation ?? ""
         body.string = item?.text ?? ""
         refreshLanguage(); window.center()
         NSApp.activate(ignoringOtherApps: true); window.makeKeyAndOrderFront(nil); window.makeFirstResponder(titleField)
     }
 
     @objc func saveChanges() {
-        if onSave?(id, titleField.stringValue, body.string) == true { close() }
+        if onSave?(id, titleField.stringValue, body.string, abbreviationField.stringValue) == true { close() }
     }
-    @objc func close() { window.orderOut(nil); titleField.stringValue = ""; body.string = ""; onFinish?() }
+    @objc func close() { window.orderOut(nil); titleField.stringValue = ""; abbreviationField.stringValue = ""; body.string = ""; onFinish?() }
 }
 
 extension SnippetEditorController: NSWindowDelegate {

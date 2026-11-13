@@ -21,18 +21,20 @@ BEGIN
     CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 224, 188, 76, 22
 END
 
-IDD_SNIPPET DIALOGEX 0, 0, 360, 274
+IDD_SNIPPET DIALOGEX 0, 0, 360, 304
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Chojema CopyKeep"
 FONT 10, "Segoe UI"
 BEGIN
     LTEXT "", IDC_SNIPPET_TITLE_LABEL, 16, 14, 328, 14
     EDITTEXT IDC_SNIPPET_TITLE, 16, 30, 328, 19, ES_AUTOHSCROLL | WS_TABSTOP
-    LTEXT "", IDC_SNIPPET_BODY_LABEL, 16, 59, 328, 14
-    EDITTEXT IDC_SNIPPET_BODY, 16, 75, 328, 134, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP
-    LTEXT "", IDC_SNIPPET_HELP, 16, 216, 328, 20
-    CONTROL "", IDOK, "Button", BS_OWNERDRAW | WS_TABSTOP, 186, 242, 76, 22
-    CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 268, 242, 76, 22
+    LTEXT "", IDC_ABBREVIATION_LABEL, 16, 59, 140, 14
+    EDITTEXT IDC_ABBREVIATION, 164, 55, 180, 19, ES_AUTOHSCROLL | WS_TABSTOP
+    LTEXT "", IDC_SNIPPET_BODY_LABEL, 16, 89, 328, 14
+    EDITTEXT IDC_SNIPPET_BODY, 16, 105, 328, 134, ES_MULTILINE | ES_AUTOVSCROLL | ES_WANTRETURN | WS_VSCROLL | WS_TABSTOP
+    LTEXT "", IDC_SNIPPET_HELP, 16, 246, 328, 20
+    CONTROL "", IDOK, "Button", BS_OWNERDRAW | WS_TABSTOP, 186, 272, 76, 22
+    CONTROL "", IDCANCEL, "Button", BS_OWNERDRAW | WS_TABSTOP, 268, 272, 76, 22
 END
 
 LANGUAGE LANG_KOREAN, SUBLANG_KOREAN
@@ -62,10 +64,10 @@ BEGIN
     IDS_PASTE_ERROR "대상 앱으로 붙여넣기 입력을 보내지 못했습니다. 항목은 클립보드에 있으므로 직접 붙여넣을 수 있습니다."
     IDS_STARTUP_ERROR "자동 실행 설정을 저장하지 못했습니다."
     IDS_QUIT "종료"
-    IDS_PAUSE "수집 일시 중지"
-    IDS_RESUME "수집 다시 시작"
+    IDS_PAUSE "기록 수집·텍스트 대치 일시 중지"
+    IDS_RESUME "기록 수집·텍스트 대치 다시 시작"
     IDS_ABOUT "앱 정보"
-    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.3.0\n텍스트와 이미지의 로컬 복사 기록"
+    IDS_AUTHOR "제작자: Park Chulwoo\n버전: 0.4.0\n텍스트와 이미지의 로컬 복사 기록"
     IDS_CAPTURE_ERROR "복사 내용을 저장하지 못했습니다. 항목은 최대 32 MiB, 이미지는 최대 16,777,216픽셀까지 지원합니다."
     IDS_DATABASE_ERROR "기록 저장소를 열지 못했습니다. 저장 위치의 접근 권한을 확인해 주세요."
     IDS_PASTE_HINT "원래 입력 위치로 붙여넣습니다."
@@ -74,18 +76,20 @@ BEGIN
     IDS_PASTE_ACTION "붙여넣기"
     IDS_HOTKEY_EMPTY "키 조합을 누르세요"
     IDS_HISTORY "기록"
-    IDS_SNIPPETS "상용구"
+    IDS_SNIPPETS "텍스트 대치"
     IDS_SEARCH "검색"
-    IDS_NEW_SNIPPET "새 상용구"
+    IDS_NEW_SNIPPET "새 텍스트 대치"
     IDS_EDIT_SNIPPET "편집"
-    IDS_SAVE_SNIPPET "상용구로 저장"
+    IDS_SAVE_SNIPPET "텍스트 대치로 저장"
     IDS_SNIPPET_TITLE "제목(&T)"
     IDS_SNIPPET_BODY "내용(&B)"
-    IDS_SNIPPET_EMPTY "저장된 상용구가 없습니다.\n새 상용구를 만들거나 텍스트 기록에서 저장하세요."
+    IDS_SNIPPET_EMPTY "저장된 텍스트 대치가 없습니다.\n새 텍스트 대치를 만들거나 텍스트 기록에서 저장하세요."
     IDS_NO_RESULTS "검색 결과가 없습니다."
-    IDS_BAD_SNIPPET "공백이 아닌 제목과 내용을 입력하세요. 제목은 한 줄로 80자, 내용은 65,536자까지 입력할 수 있습니다."
-    IDS_SNIPPET_HELP "기록 전체 삭제와 보관 한도는 상용구에 적용되지 않습니다."
-    IDS_SNIPPET_DELETE_CONFIRM "선택한 상용구를 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+    IDS_BAD_SNIPPET "제목(80자)과 내용(65,536자)을 입력하세요. 약어는 공백 없는 영문·숫자·기호 2~64자이며 중복되거나 서로의 접두어가 될 수 없습니다."
+    IDS_SNIPPET_HELP "약어: 영문·숫자·기호 2~64자, 대소문자 구분.\n비워 두면 목록에서만 붙여넣습니다."
+    IDS_SNIPPET_DELETE_CONFIRM "선택한 텍스트 대치를 삭제할까요? 이 작업은 되돌릴 수 없습니다."
+    IDS_ABBREVIATION "약어(선택)(&A)"
+    IDS_REPLACEMENT_ERROR "텍스트 대치를 시작하지 못했습니다. 앱을 다시 실행하세요."
     IDS_CHECK_UPDATE "업데이트 확인"
     IDS_UPDATE_CHECKING "업데이트 확인 중…"
     IDS_UPDATE_CURRENT "현재 버전은 최신 정식 버전과 같거나 더 새롭습니다."
@@ -123,10 +127,10 @@ BEGIN
     IDS_PASTE_ERROR "Paste input could not be sent to the destination app. The item is on the clipboard, so you can paste it manually."
     IDS_STARTUP_ERROR "The login startup setting could not be saved."
     IDS_QUIT "Quit"
-    IDS_PAUSE "Pause collection"
-    IDS_RESUME "Resume collection"
+    IDS_PAUSE "Pause collection and text replacement"
+    IDS_RESUME "Resume collection and text replacement"
     IDS_ABOUT "About"
-    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.3.0\nLocal clipboard history for text and images"
+    IDS_AUTHOR "Developer: Park Chulwoo\nVersion: 0.4.0\nLocal clipboard history for text and images"
     IDS_CAPTURE_ERROR "The item could not be saved. Items are limited to 32 MiB and images to 16,777,216 pixels."
     IDS_DATABASE_ERROR "The history database could not be opened. Check access to the storage location."
     IDS_PASTE_HINT "Paste into the original insertion point."
@@ -135,18 +139,20 @@ BEGIN
     IDS_PASTE_ACTION "Paste"
     IDS_HOTKEY_EMPTY "Press a key combination"
     IDS_HISTORY "History"
-    IDS_SNIPPETS "Snippets"
+    IDS_SNIPPETS "Text replacements"
     IDS_SEARCH "Search"
-    IDS_NEW_SNIPPET "New snippet"
+    IDS_NEW_SNIPPET "New text replacement"
     IDS_EDIT_SNIPPET "Edit"
-    IDS_SAVE_SNIPPET "Save as snippet"
+    IDS_SAVE_SNIPPET "Save as text replacement"
     IDS_SNIPPET_TITLE "&Title"
     IDS_SNIPPET_BODY "&Content"
-    IDS_SNIPPET_EMPTY "No snippets yet.\nCreate a snippet or save one from text history."
-    IDS_NO_RESULTS "No matching snippets."
-    IDS_BAD_SNIPPET "Enter a nonblank title and content. Use a single-line title up to 80 characters and content up to 65,536 characters."
-    IDS_SNIPPET_HELP "Clearing history and the history limit do not affect snippets."
-    IDS_SNIPPET_DELETE_CONFIRM "Delete the selected snippet? This cannot be undone."
+    IDS_SNIPPET_EMPTY "No text replacements yet.\nCreate a snippet or save one from text history."
+    IDS_NO_RESULTS "No matching text replacements."
+    IDS_BAD_SNIPPET "Enter a title (80 characters) and content (65,536). Abbreviations must contain 2–64 nonspace ASCII characters and cannot equal or prefix another abbreviation."
+    IDS_SNIPPET_HELP "Abbreviation: 2–64 ASCII characters; case sensitive.\nLeave blank to paste from the list only."
+    IDS_SNIPPET_DELETE_CONFIRM "Delete the selected text replacement? This cannot be undone."
+    IDS_ABBREVIATION "&Abbreviation (optional)"
+    IDS_REPLACEMENT_ERROR "Could not start text replacement. Relaunch the app."
     IDS_CHECK_UPDATE "Check for updates"
     IDS_UPDATE_CHECKING "Checking for updates…"
     IDS_UPDATE_CURRENT "Your version matches or is newer than the latest stable release."
@@ -159,8 +165,8 @@ END
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 1 VERSIONINFO
-FILEVERSION 0,3,0,0
-PRODUCTVERSION 0,3,0,0
+FILEVERSION 0,4,0,0
+PRODUCTVERSION 0,4,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -173,12 +179,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Park Chulwoo\0"
             VALUE "FileDescription", "Chojema CopyKeep\0"
-            VALUE "FileVersion", "0.3.0\0"
+            VALUE "FileVersion", "0.4.0\0"
             VALUE "InternalName", "ChojemaCopyKeep\0"
             VALUE "LegalCopyright", "Copyright (c) 2026 Park Chulwoo\0"
             VALUE "OriginalFilename", "ChojemaCopyKeep.exe\0"
             VALUE "ProductName", "Chojema CopyKeep\0"
-            VALUE "ProductVersion", "0.3.0\0"
+            VALUE "ProductVersion", "0.4.0\0"
         END
     END
     BLOCK "VarFileInfo"

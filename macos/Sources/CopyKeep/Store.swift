@@ -8,6 +8,7 @@ struct HistoryItem {
     let kind: String
     let payload: Data
     var title: String? = nil
+    var abbreviation = ""
     var text: String { String(data: payload, encoding: .utf8) ?? "" }
     var isSnippet: Bool { title != nil }
 }
@@ -40,6 +41,11 @@ final class HistoryStore {
         do {
             try execute("PRAGMA journal_mode=WAL; PRAGMA secure_delete=ON; CREATE TABLE IF NOT EXISTS history (id INTEGER PRIMARY KEY, kind TEXT NOT NULL, payload BLOB NOT NULL, hash TEXT NOT NULL UNIQUE, position INTEGER NOT NULL); CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), payload BLOB NOT NULL);")
             try execute("CREATE TABLE IF NOT EXISTS snippets (id INTEGER PRIMARY KEY, title TEXT NOT NULL, payload BLOB NOT NULL)")
+            let columns = try statement("SELECT name FROM pragma_table_info('snippets') WHERE name='abbreviation'")
+            let exists = sqlite3_step(columns) == SQLITE_ROW
+            sqlite3_finalize(columns)
+            if !exists { try execute("ALTER TABLE snippets ADD COLUMN abbreviation TEXT NOT NULL DEFAULT ''") }
+            try execute("CREATE UNIQUE INDEX IF NOT EXISTS snippet_abbreviation ON snippets(abbreviation) WHERE abbreviation<>''")
         } catch { sqlite3_close(db); db = nil; throw error }
     }
 
@@ -120,7 +126,7 @@ final class HistoryStore {
     }
 
     func snippets(matching query: String = "") throws -> [HistoryItem] {
-        let stmt = try statement("SELECT id,title,payload FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 ORDER BY id DESC")
+        let stmt = try statement("SELECT id,title,payload,abbreviation FROM snippets WHERE instr(lower(title),lower(?1))>0 OR instr(lower(CAST(payload AS TEXT)),lower(?1))>0 OR instr(lower(abbreviation),lower(?1))>0 ORDER BY id DESC")
         defer { sqlite3_finalize(stmt) }
         sqlite3_bind_text(stmt, 1, query, -1, transient)
         var items: [HistoryItem] = []
@@ -129,22 +135,33 @@ final class HistoryStore {
             if result == SQLITE_DONE { return items }
             guard result == SQLITE_ROW, let title = sqlite3_column_text(stmt, 1), let bytes = sqlite3_column_blob(stmt, 2) else { throw StoreError.database }
             items.append(HistoryItem(id: sqlite3_column_int64(stmt, 0), kind: "text",
-                payload: Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, 2))), title: String(cString: title)))
+                payload: Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, 2))), title: String(cString: title), abbreviation: String(cString: sqlite3_column_text(stmt, 3))))
         }
     }
 
     @discardableResult
-    func saveSnippet(id: Int64? = nil, title: String, body: String) throws -> Int64 {
+    func saveSnippet(id: Int64? = nil, title: String, body: String, abbreviation: String = "") throws -> Int64 {
         guard id == nil || id! > 0, (1...80).contains(title.utf16.count), (1...65536).contains(body.utf16.count),
               !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               title.rangeOfCharacter(from: .newlines.union(CharacterSet(charactersIn: "\t\0"))) == nil,
               !body.contains("\0") else { throw StoreError.invalidItem }
-        let stmt = try statement(id == nil ? "INSERT INTO snippets(title,payload) VALUES(?1,?2)" : "UPDATE snippets SET title=?1,payload=?2 WHERE id=?3")
+        guard ReplacementMatcher.valid(abbreviation) else { throw StoreError.invalidItem }
+        if !abbreviation.isEmpty {
+            let conflict = try statement("SELECT 1 FROM snippets WHERE abbreviation<>'' AND id<>?1 AND (substr(abbreviation,1,length(?2))=?2 OR substr(?2,1,length(abbreviation))=abbreviation) LIMIT 1")
+            defer { sqlite3_finalize(conflict) }
+            sqlite3_bind_int64(conflict, 1, id ?? -1)
+            sqlite3_bind_text(conflict, 2, abbreviation, -1, transient)
+            let result = sqlite3_step(conflict)
+            if result == SQLITE_ROW { throw StoreError.invalidItem }
+            guard result == SQLITE_DONE else { throw StoreError.database }
+        }
+        let stmt = try statement(id == nil ? "INSERT INTO snippets(title,payload,abbreviation) VALUES(?1,?2,?4)" : "UPDATE snippets SET title=?1,payload=?2,abbreviation=?4 WHERE id=?3")
         defer { sqlite3_finalize(stmt) }
         let data = Data(body.utf8)
         sqlite3_bind_text(stmt, 1, title, -1, transient)
         _ = data.withUnsafeBytes { sqlite3_bind_blob(stmt, 2, $0.baseAddress, Int32(data.count), transient) }
+        sqlite3_bind_text(stmt, 4, abbreviation, -1, transient)
         if let id { sqlite3_bind_int64(stmt, 3, id) }
         try finish(stmt)
         guard id == nil || sqlite3_changes(db) == 1 else { throw StoreError.database }
