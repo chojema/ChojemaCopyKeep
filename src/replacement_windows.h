@@ -79,12 +79,34 @@ public:
         if (active_==this) active_=nullptr;
         automation_.Reset(); reset();
     }
+    static bool select_edit(HWND edit,const std::wstring& abbreviation) {
+        constexpr UINT timeout=100;
+        DWORD_PTR length=0,selection=0,copied=0;
+        if (GetWindowLongPtrW(edit,GWL_STYLE)&ES_PASSWORD ||
+            !SendMessageTimeoutW(edit,WM_GETTEXTLENGTH,0,0,SMTO_ABORTIFHUNG,timeout,&length) || length>65535 ||
+            !SendMessageTimeoutW(edit,EM_GETSEL,0,0,SMTO_ABORTIFHUNG,timeout,&selection)) return false;
+        size_t start=LOWORD(selection),end=HIWORD(selection);
+        if (start!=end || start<abbreviation.size() || end>length) return false;
+        std::wstring value(static_cast<size_t>(length)+1,L'\0');
+        if (!SendMessageTimeoutW(edit,WM_GETTEXT,value.size(),reinterpret_cast<LPARAM>(value.data()),SMTO_ABORTIFHUNG,timeout,&copied) ||
+            copied!=length || value.compare(start-abbreviation.size(),abbreviation.size(),abbreviation)!=0) return false;
+        GUITHREADINFO info{sizeof(info)};
+        if (!GetGUIThreadInfo(GetWindowThreadProcessId(GetForegroundWindow(),nullptr),&info) || info.hwndFocus!=edit) return false;
+        DWORD_PTR current=0,result=0;
+        if (!SendMessageTimeoutW(edit,EM_GETSEL,0,0,SMTO_ABORTIFHUNG,timeout,&current) || current!=selection ||
+            !SendMessageTimeoutW(edit,EM_SETSEL,start-abbreviation.size(),end,SMTO_ABORTIFHUNG,timeout,&result)) return false;
+        return SendMessageTimeoutW(edit,EM_GETSEL,0,0,SMTO_ABORTIFHUNG,timeout,&current) &&
+            LOWORD(current)==start-abbreviation.size() && HIWORD(current)==end;
+    }
     static bool select_abbreviation(IUIAutomation* automation,const std::wstring& abbreviation) {
         using Microsoft::WRL::ComPtr;
         ComPtr<IUIAutomationElement> element;
         if (!automation || FAILED(automation->GetFocusedElement(&element)) || !element) return false;
         BOOL password=TRUE;
         if (FAILED(element->get_CurrentIsPassword(&password)) || password) return false;
+        UIA_HWND handle=nullptr; wchar_t className[32]{};
+        if (SUCCEEDED(element->get_CurrentNativeWindowHandle(&handle)) && handle &&
+            GetClassNameW(handle,className,32) && _wcsicmp(className,L"Edit")==0) return select_edit(handle,abbreviation);
         ComPtr<IUIAutomationTextPattern> pattern;
         if (FAILED(element->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&pattern))) || !pattern) return false;
         ComPtr<IUIAutomationTextRangeArray> ranges; int count=0;
