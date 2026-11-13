@@ -30,7 +30,11 @@ struct ReplacementMatcher {
 
 final class TextReplacement {
     var matcher = ReplacementMatcher()
-    var onReplace: ((String, String, pid_t) -> Void)?
+    var onReplace: ((String, String, pid_t) -> Bool)?
+    private(set) var observedKeys = 0
+    private(set) var matchedKeys = 0
+    private(set) var completedReplacements = 0
+    private var generation = 0
     private var monitor: Any?
     private var localMonitor: Any?
     private var process: pid_t = 0
@@ -54,9 +58,10 @@ final class TextReplacement {
         monitor = nil; localMonitor = nil; reset()
     }
 
-    private func reset() { matcher.reset(); pending = nil }
+    private func reset() { matcher.reset(); pending = nil; generation += 1 }
 
     private func receive(_ event: NSEvent) {
+        if event.type == .keyDown { observedKeys += 1 }
         let source = TISCopyCurrentKeyboardInputSource().takeRetainedValue()
         let type = TISGetInputSourceProperty(source, kTISPropertyInputSourceType).map { Unmanaged<CFString>.fromOpaque($0).takeUnretainedValue() }
         guard type != kTISTypeKeyboardInputMode, !IsSecureEventInputEnabled(), let front = NSWorkspace.shared.frontmostApplication else { reset(); return }
@@ -66,9 +71,20 @@ final class TextReplacement {
         guard event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { reset(); return }
         if event.type == .keyDown {
             guard !event.isARepeat else { reset(); return }
+            generation += 1
             pending = matcher.append(event.characters ?? ""); pendingKey = event.keyCode
         } else if event.keyCode == pendingKey, let (abbreviation, body) = pending {
-            reset(); onReplace?(abbreviation, body, process)
+            reset(); matchedKeys += 1
+            attempt(abbreviation, body: body, process: process, generation: generation, remaining: 5)
+        }
+    }
+
+    private func attempt(_ abbreviation: String, body: String, process: pid_t, generation: Int, remaining: Int) {
+        // The destination handles key events on a different run loop.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.025) { [weak self] in
+            guard let self, self.generation == generation else { return }
+            if self.onReplace?(abbreviation, body, process) == true { self.completedReplacements += 1 }
+            else if remaining > 1 { self.attempt(abbreviation, body: body, process: process, generation: generation, remaining: remaining - 1) }
         }
     }
 

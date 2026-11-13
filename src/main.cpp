@@ -25,7 +25,7 @@ namespace {
 constexpr UINT tray_message = WM_APP + 1, paste_message = WM_APP + 2, replacement_message = WM_APP + 3;
 constexpr int list_id = 300, settings_id = 301, delete_id = 302, clear_id = 303, close_id = 304;
 constexpr int mode_id=305, search_id=306, new_snippet_id=307, edit_snippet_id=308, save_snippet_id=309;
-constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, update_timer = 13, hover_delay = 250;
+constexpr UINT capture_timer = 10, paste_timer = 11, hover_timer = 12, update_timer = 13, replacement_timer = 14, hover_delay = 250;
 const COLORREF accent = RGB(23,107,99);
 HINSTANCE instance;
 std::wstring text(UINT id, bool english) {
@@ -102,6 +102,7 @@ class App {
 public:
     Store store;
     TextReplacement replacement;
+    ULONG_PTR replacementGeneration=0;
     std::future<Version> updateCheck;
     bool english=false, promote=true, paused=false, testing=false, settingsOpen=false;
     UINT modifiers=MOD_CONTROL|MOD_SHIFT, key='Z';
@@ -759,7 +760,8 @@ public:
         if (!self) return DefWindowProcW(window,message,w,l);
         try {
             if (message==WM_CLIPBOARDUPDATE) { self->capture(); return 0; }
-            if (message==replacement_message) { self->replace_text(w); return 0; }
+            if (message==replacement_message) { self->replacementGeneration=w; SetTimer(window,replacement_timer,25,nullptr); return 0; }
+            if (message==WM_TIMER && w==replacement_timer) { KillTimer(window,replacement_timer); self->replace_text(self->replacementGeneration); return 0; }
             if (message==WM_HOTKEY) { self->show(); return 0; }
             if (message==WM_TIMER && w==capture_timer) { self->capture(); return 0; }
             if (message==WM_TIMER && w==paste_timer) { self->finish_paste(); return 0; }

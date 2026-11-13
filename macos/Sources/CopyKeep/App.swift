@@ -254,13 +254,14 @@ final class AppController: NSObject, NSApplicationDelegate {
                   let source = CGEventSource(stateID: .privateState),
                   let down = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: true),
                   let up = CGEvent(keyboardEventSource: source, virtualKey: 9, keyDown: false),
-                  TextReplacement.selectAbbreviation(abbreviation, process: process) else { return }
+                  TextReplacement.selectAbbreviation(abbreviation, process: process) else { return false }
             let board = NSPasteboard.general
             board.clearContents()
-            guard board.setString(body, forType: .string) else { showAlert("pasteError"); return }
+            guard board.setString(body, forType: .string) else { showAlert("pasteError"); return true }
             self.lastChange = board.changeCount
             down.flags = .maskCommand; up.flags = .maskCommand
             down.postToPid(process); up.postToPid(process)
+            return true
         }
         if !replacement.start(), prompt {
             let alert = NSAlert()
@@ -337,8 +338,12 @@ final class AppController: NSObject, NSApplicationDelegate {
                 wireActions(); refreshReplacements(prompt: false)
                 let report: [String: Any] = ["accessibility": AXIsProcessTrusted(), "ready": true]
                 try JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted]).write(to: output)
-                let deadline = Date().addingTimeInterval(45)
+                let deadline = Date().addingTimeInterval(180)
                 timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                    let status: [String: Any] = ["accessibility": AXIsProcessTrusted(), "ready": true,
+                        "keyEvents": self.replacement.observedKeys, "matches": self.replacement.matchedKeys,
+                        "completed": self.replacement.completedReplacements]
+                    try? JSONSerialization.data(withJSONObject: status, options: [.prettyPrinted]).write(to: output)
                     if FileManager.default.fileExists(atPath: output.appendingPathExtension("stop").path) || Date() >= deadline {
                         timer.invalidate(); NSApp.terminate(nil)
                     }
