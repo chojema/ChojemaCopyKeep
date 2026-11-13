@@ -106,7 +106,7 @@ public:
         if (FAILED(element->get_CurrentIsPassword(&password)) || password) return false;
         UIA_HWND handle=nullptr; wchar_t className[32]{};
         if (SUCCEEDED(element->get_CurrentNativeWindowHandle(&handle)) && handle &&
-            GetClassNameW(handle,className,32) && _wcsicmp(className,L"Edit")==0) return select_edit(handle,abbreviation);
+            GetClassNameW(static_cast<HWND>(handle),className,32) && _wcsicmp(className,L"Edit")==0) return select_edit(static_cast<HWND>(handle),abbreviation);
         ComPtr<IUIAutomationTextPattern> pattern;
         if (FAILED(element->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&pattern))) || !pattern) return false;
         ComPtr<IUIAutomationTextRangeArray> ranges; int count=0;

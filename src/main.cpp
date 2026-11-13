@@ -915,7 +915,7 @@ int self_test(const std::filesystem::path& root) {
         check(header->bV5Width==320 && header->bV5Height==-180 && dib.size()==sizeof(BITMAPV5HEADER)+320*180*4,"Image paste format");
         auto imageId=store.put(1,image.png,L"",image.width,image.height); check(store.payload(imageId)==image.png,"Image persistence");
         HBITMAP preview=thumbnail(image.png,120,80); check(preview!=nullptr,"Image preview"); if (preview) DeleteObject(preview);
-        for (UINT id=IDS_APP;id<=IDS_UPDATE_OPEN_ERROR;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
+        for (UINT id=IDS_APP;id<=IDS_REPLACEMENT_ERROR;++id) { check(!text(id,false).empty(),"Missing Korean resource"); check(!text(id,true).empty(),"Missing English resource"); }
     }
     {
         Store store(folder); check(store.setting("language","ko")=="en" && store.list().size()==3,"Restart persistence");

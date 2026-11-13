@@ -69,7 +69,7 @@ Windows and macOS 0.4.0 replace a typed abbreviation with registered text automa
 - Type abbreviations with an English input source. Active Korean IME composition is excluded; replacement content can include Korean.
 - Existing snippets are preserved. Add an abbreviation to enable automatic replacement, or leave it blank to paste from the list only. Search titles, content or abbreviations; edit, save from history or delete individual entries with confirmation.
 - Clearing history and applying its limit do not affect replacements. The pause menu pauses both collection and automatic replacement.
-- macOS requires Accessibility permission. Follow the app's permission prompt, then relaunch it. Password fields and secure input are excluded. If an app does not expose the insertion point and exact abbreviation through accessibility APIs, the original input is left unchanged. Windows input can be restricted in elevated apps.
+- macOS requires Device Control and Data Access permission (Accessibility on earlier macOS versions). Follow the app's permission prompt, then relaunch it. Password fields and secure input are excluded. If an app does not expose the insertion point and exact abbreviation through accessibility APIs, the original input is left unchanged. Windows input can be restricted in elevated apps.
 - Replacement copies the registered content to the system clipboard and pastes it. This changes the previous clipboard content; the replacement itself is not added to clipboard history. Date variables and scripts are not supported.
 
 ## Data Storage and Privacy

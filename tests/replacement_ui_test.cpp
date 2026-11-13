@@ -5,9 +5,10 @@
 
 int main() {
     using namespace copykeep;
-    HWND window=CreateWindowExW(0,L"STATIC",L"CopyKeep replacement test",WS_OVERLAPPEDWINDOW|WS_VISIBLE,60,60,500,220,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
+    HWND window=CreateWindowExW(0,L"STATIC",L"CopyKeep replacement test",WS_OVERLAPPEDWINDOW|WS_VISIBLE,60,60,500,260,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     HWND edit=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"Keep ;;addr",WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_MULTILINE,20,20,420,120,window,nullptr,GetModuleHandleW(nullptr),nullptr);
-    if (!window || !edit) return 1;
+    HWND password=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L";;addr",WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_PASSWORD,20,150,420,22,window,nullptr,GetModuleHandleW(nullptr),nullptr);
+    if (!window || !edit || !password) return 1;
     SetForegroundWindow(window); SetFocus(edit); SendMessageW(edit,EM_SETSEL,11,11);
     auto test=std::async(std::launch::async,[=] {
         CoInitializeEx(nullptr,COINIT_MULTITHREADED);
@@ -29,6 +30,12 @@ int main() {
             SendMessageW(edit,EM_REPLACESEL,TRUE,reinterpret_cast<LPARAM>(L"서울\r\nSeoul 😀"));
             wchar_t value[128]{}; GetWindowTextW(edit,value,128);
             check(std::wstring(value)==L"Keep 서울\r\nSeoul 😀");
+            Microsoft::WRL::ComPtr<IUIAutomationElement> secure;
+            check(SUCCEEDED(automation->ElementFromHandle(password,&secure)) && secure);
+            check(SUCCEEDED(secure->SetFocus()));
+            SendMessageW(password,EM_SETSEL,6,6);
+            check(!TextReplacement::select_abbreviation(automation.Get(),L";;addr"));
+            GetWindowTextW(password,value,128); check(std::wstring(value)==L";;addr");
         }
         CoUninitialize(); return checks;
     });

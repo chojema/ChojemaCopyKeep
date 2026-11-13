@@ -33,9 +33,9 @@
 "shortcutConflict" = "The shortcut could not be registered. Check whether another app uses it and choose a different shortcut in Settings.";
 "storageError" = "Local history or settings could not be read or saved. Check available disk space and folder permissions.";
 "collectionError" = "Collection was paused because clipboard history could not be saved. Check available disk space and folder permissions, then resume collection from the menu.";
-"pasteError" = "The paste shortcut could not be sent to the original app. Check the insertion point and Accessibility permission.";
+"pasteError" = "The paste shortcut could not be sent to the original app. Check the insertion point and Device Control and Data Access permission (Accessibility on earlier macOS versions).";
 "noTarget" = "Select the destination app, then open clipboard history with the keyboard shortcut.";
-"accessibilityTitle" = "Pasting requires Accessibility permission";
+"accessibilityTitle" = "Pasting requires Device Control and Data Access permission (Accessibility on earlier macOS versions)";
 "accessibilityBody" = "Allow Chojema CopyKeep in System Settings > Privacy & Security > Accessibility. Then return to the destination app and open history again with the shortcut. History collection also works without this permission.";
 "openSettings" = "Open System Settings";
 "clearConfirm" = "Delete all clipboard history?";
@@ -71,4 +71,4 @@
 
 "abbreviation" = "Abbreviation (optional)";
 "replacementPermissionTitle" = "Text replacement permission";
-"replacementPermissionBody" = "Accessibility permission is required to detect abbreviations and insert text. Allow this app, then relaunch it. Monitored input is never saved or transmitted.";
+"replacementPermissionBody" = "Device Control and Data Access permission (Accessibility on earlier macOS versions) is required to detect abbreviations and insert text. Allow this app, then relaunch it. Monitored input is never saved or transmitted.";
