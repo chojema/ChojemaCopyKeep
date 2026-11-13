@@ -30,6 +30,22 @@ int main() {
             SendMessageW(edit,EM_SETSEL,0,4);
             check(!TextReplacement::select_abbreviation(automation.Get(),L";;addr"));
             SendMessageW(edit,EM_SETSEL,11,11);
+            Microsoft::WRL::ComPtr<IUIAutomationTextRangeArray> selections;
+            HRESULT status=pattern->GetSelection(&selections); int length=0;
+            if (selections) selections->get_Length(&length);
+            std::cout<<"Selection status/count: "<<std::hex<<status<<std::dec<<"/"<<length<<"\n";
+            if (selections && length==1) {
+                Microsoft::WRL::ComPtr<IUIAutomationTextRange> range; selections->GetElement(0,&range);
+                int comparison=99,moved=99;
+                status=range->CompareEndpoints(TextPatternRangeEndpoint_Start,range.Get(),TextPatternRangeEndpoint_End,&comparison);
+                std::cout<<"Collapsed status/comparison: "<<std::hex<<status<<std::dec<<"/"<<comparison<<"\n";
+                status=range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start,TextUnit_Character,-6,&moved);
+                std::cout<<"Move status/count: "<<std::hex<<status<<std::dec<<"/"<<moved<<"\n";
+                BSTR selected=nullptr; status=range->GetText(7,&selected);
+                std::cout<<"Selected status/length: "<<std::hex<<status<<std::dec<<"/"<<(selected?SysStringLen(selected):0)<<"\n";
+                if (selected) { for (UINT i=0;i<SysStringLen(selected);++i) std::cout<<static_cast<unsigned>(selected[i])<<" "; std::cout<<"\n"; }
+                SysFreeString(selected);
+            }
             check(TextReplacement::select_abbreviation(automation.Get(),L";;addr"));
             DWORD start=0,end=0; SendMessageW(edit,EM_GETSEL,reinterpret_cast<WPARAM>(&start),reinterpret_cast<LPARAM>(&end));
             check(start==5 && end==11);
