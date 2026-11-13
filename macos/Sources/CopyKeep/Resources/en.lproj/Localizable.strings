@@ -45,9 +45,9 @@
 "sampleShort" = "A sentence to use again";
 "sampleLong" = "Keep copied text and images, choose an item with a keyboard shortcut, and paste it into the original insertion point. Long content appears in the preview on the right.";
 "sampleMultiline" = "Project notes\nFirst: review clipboard history\nSecond: select an item and paste\nThird: keep the items you need";
-"text replacements" = "Text replacements";
+"snippets" = "Text replacements";
 "source" = "History / Text replacements";
-"searchText replacements" = "Search text replacements";
+"searchSnippets" = "Search text replacements";
 "newSnippet" = "New text replacement";
 "editSnippet" = "Edit";
 "saveSnippet" = "Save as text replacement";
@@ -55,8 +55,8 @@
 "snippetBody" = "Content";
 "snippetHelp" = "Abbreviation: 2–64 ASCII letters, digits or symbols (optional) · Case sensitive\nLeave blank to paste from the list only.";
 "invalidSnippet" = "Enter a title (single line, up to 80 characters) and content (up to 65,536). Abbreviations must contain 2–64 nonspace ASCII characters and cannot equal or prefix another abbreviation.";
-"emptyText replacements" = "No text replacements yet.\nCreate a snippet or save one from text history.";
-"noText replacements" = "No matching text replacements.";
+"emptySnippets" = "No text replacements yet.\nCreate a snippet or save one from text history.";
+"noSnippets" = "No matching text replacements.";
 "deleteSnippet" = "Delete the selected text replacement?";
 "deleteSnippetBody" = "This cannot be undone. Clipboard history is preserved.";
 "checkUpdate" = "Check for updates";

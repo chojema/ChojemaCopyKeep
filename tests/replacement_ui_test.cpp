@@ -12,10 +12,20 @@ int main() {
     auto test=std::async(std::launch::async,[=] {
         CoInitializeEx(nullptr,COINIT_MULTITHREADED);
         int checks=0;
-        auto check=[&](bool ok) { if (!ok) throw std::runtime_error("Text replacement selection regression failed"); ++checks; };
+        auto check=[&](bool ok) { if (!ok) throw std::runtime_error("Text replacement selection check "+std::to_string(checks+1)+" failed"); ++checks; };
         {
             Microsoft::WRL::ComPtr<IUIAutomation> automation;
             check(SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation))));
+            Microsoft::WRL::ComPtr<IUIAutomationElement> expected;
+            check(SUCCEEDED(automation->ElementFromHandle(edit,&expected)) && expected);
+            check(SUCCEEDED(expected->SetFocus()));
+            Microsoft::WRL::ComPtr<IUIAutomationElement> focused;
+            automation->GetFocusedElement(&focused);
+            UIA_HWND actual=nullptr; if (focused) focused->get_CurrentNativeWindowHandle(&actual);
+            std::cout<<"Focused control: "<<actual<<" expected: "<<edit<<"\n";
+            Microsoft::WRL::ComPtr<IUIAutomationTextPattern> pattern;
+            auto patternStatus=expected->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&pattern));
+            std::cout<<"Text pattern status: "<<std::hex<<patternStatus<<std::dec<<"\n";
             check(!TextReplacement::select_abbreviation(automation.Get(),L";;wrong"));
             SendMessageW(edit,EM_SETSEL,0,4);
             check(!TextReplacement::select_abbreviation(automation.Get(),L";;addr"));
@@ -35,6 +45,6 @@ int main() {
         MsgWaitForMultipleObjects(0,nullptr,FALSE,10,QS_ALLINPUT);
     }
     int result=0;
-    try { std::cout<<"PASS: "<<test.get()<<" native selection checks\n"; } catch (const std::exception& error) { std::cerr<<error.what()<<"\n"; result=1; }
+    try { int checks=test.get(); std::cout<<"PASS: "<<checks<<" native selection checks\n"; } catch (const std::exception& error) { std::cerr<<error.what()<<"\n"; result=1; }
     DestroyWindow(window); return result;
 }
